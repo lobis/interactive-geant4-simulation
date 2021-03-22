@@ -36,24 +36,24 @@ class Counter(props: CounterProps) : RComponent<CounterProps, State>(props) {
     }
 
     override fun RBuilder.render() {
-        table {
+        table(classes = "table table-hover table-dark table-sm") {
             attrs.id = "table-counts"
-            thead {
+            thead(classes = "thead-dark") {
                 tr {
-                    th { +"runID" }
-                    th { +"events" }
+                    th(scope = ThScope.col) { +"runID" }
+                    th(scope = ThScope.col) { +"events" }
                 }
             }
-            state.counts.counts.map {
-                tbody {
+            tbody {
+                state.counts.counts.map {
                     tr {
                         td { +"${it.key}" }
                         td { +"${it.value}" }
                     }
                 }
             }
-
         }
+
     }
 }
 
@@ -92,16 +92,71 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                 }
             }
         }
-        h1 { +"Commands Sent" }
-        ul {
-            for (command in state.commandsSent) {
-                li { +command }
+        button {
+            a { +"Clear Database" }
+            attrs.id = "clear-database-button"
+            attrs.onClickFunction = {
+                GlobalScope.launch(Dispatchers.Main) {
+                    clearDatabase()
+                }
             }
         }
-
+        h1 { +"Commands Sent" }
+        val commandsDisplayTextAreaID: String = "commands-sent-display"
+        textArea {
+            attrs {
+                id = commandsDisplayTextAreaID
+                readonly = true
+                value = state.commandsSent.joinToString(separator = "\n")
+            }
+        }
     }
 }
 
+interface PlotProps : RProps {
+}
+
+interface PlotState : RState {
+    var runIDs: Set<Int>
+    var eventIDs: Set<Int>
+}
+
+@JsExport
+class PlotComponent(props: PlotProps) : RComponent<PlotProps, PlotState>(props) {
+    companion object {
+        const val id: String = "plot-options"
+    }
+
+    override fun PlotState.init(props: PlotProps) {
+        runIDs = setOf<Int>(1, 2, 10, 23)
+        eventIDs = setOf<Int>(2, 2, 21, 2)
+    }
+
+    override fun RBuilder.render() {
+        div {
+            label { +"choose one" }
+        }
+        input {
+            attrs {
+                id = "runID-choice"
+                name = "runID-choice"
+                list = "runID-values"
+                onClickFunction = {
+                    println("Entered on click!")
+                    setState { runIDs = setOf<Int>(22) }
+                }
+            }
+        }
+        dataList {
+            attrs.id = "runID-values"
+            for (runID in state.runIDs) {
+                option {
+                    attrs.value = runID.toString()
+                }
+            }
+        }
+    }
+}
 
 
 

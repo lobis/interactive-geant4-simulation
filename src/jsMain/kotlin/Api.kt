@@ -33,3 +33,7 @@ suspend fun sendCommand(command: String) {
         )
     }
 }
+
+suspend fun clearDatabase() {
+    return jsonClient.get("$endpoint/clear")
+}

@@ -28,7 +28,6 @@ fun main() {
         val channel = Channel<Change>(capacity = Channel.RENDEZVOUS)
 
         render(document.getElementById(Counter.id)) {
-            h1 { +"Counter" }
             child(Counter::class) {
                 attrs {
                     counts = Counts()
@@ -59,6 +58,12 @@ fun main() {
                         "/run/beamOn 10000"
                     )
                 }
+            }
+        }
+
+        render(document.getElementById(PlotComponent.id)) {
+            h1 { +"Commands" }
+            child(PlotComponent::class) {
             }
         }
     }

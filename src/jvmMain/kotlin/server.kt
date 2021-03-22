@@ -11,11 +11,8 @@ import org.jetbrains.exposed.sql.Database
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.request.*
-//
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-//
-import kotlinx.html.*
 
 fun initDB() {
     try {
@@ -63,6 +60,15 @@ object Events : Table() {
 
 }
 
+fun clearDatabase() {
+    try {
+        transaction {
+            Events.deleteAll()
+        }
+    } catch (e: Exception) {
+        println("Exception on server-side 'clearDatabase': $e")
+    }
+}
 
 fun retrieveCounts(): Counts {
     var result: Counts = Counts(mutableMapOf<Int, Long>())
@@ -200,57 +206,6 @@ fun retrieveEventByID(eventID: Int, runID: Int = 0): EventFull? {
     return result
 };
 
-fun HTML.index() {
-    head {
-        title("Interactive Geant4 Simulation")
-    }
-    body {
-        div {
-            +"Interactive Geant4 Simulation"
-        }
-        div {
-            id = "root"
-        }
-        div {
-            iframe {
-                name = "hiddenFrame"
-                width = "0"
-                height = "0"
-                style = "display: none"
-            }
-            for (command in listOf(
-                "/control/execute macros/scintillationNaI.mac",
-                "/run/beamOn 1000",
-                "/run/beamOn 10000"
-            )) {
-                form {
-                    action = "http://localhost:9080/send/"
-                    method = FormMethod.post
-                    encType = FormEncType.textPlain
-                    target = "hiddenFrame"
-                    div {
-                        input {
-                            id = "command"; name = "command"; type = InputType.text;value = command
-                        }
-                    }
-                    div {
-                        input {
-                            type = InputType.submit; value = "Send"
-                        }
-                    }
-                }
-            }
-        }
-        div {
-            textArea { id = "area"; rows = "5"; cols = "100" }
-        }
-        div {
-            id = "sentCommands"
-        }
-        script(src = "/static/output.js") {}
-    }
-}
-
 fun main() {
     initDB()
     embeddedServer(Netty, 8080) {
@@ -332,6 +287,10 @@ fun main() {
                     this::class.java.classLoader.getResource("index.html")!!.readText(),
                     ContentType.Text.Html
                 )
+            }
+            get("/clear") {
+                clearDatabase()
+                call.respond(HttpStatusCode.OK)
             }
             static("/") {
                 resources("")
