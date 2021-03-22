@@ -1,0 +1,28 @@
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 15px;
+}
+
+th {
+    text-align: left;
+}
+
+table {
+    width: 100%
+}
+
+table {
+    border-spacing: 5px;
+}
+
+button {
+    width: 100%
+}
+
+h1 {
+    text-align: center;
+}
