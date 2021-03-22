@@ -69,9 +69,10 @@ fun retrieveCounts(): Counts {
     try {
         transaction {
             val queryResult =
-                Events.slice(Events.runID, Events.eventID.count()).selectAll().withDistinct().groupBy(Events.runID)
+                Events.slice(Events.runID, Events.eventID.countDistinct()).selectAll().withDistinct()
+                    .groupBy(Events.runID)
                     .map {
-                        it[Events.runID] to it[Events.eventID.count()]
+                        it[Events.runID] to it[Events.eventID.countDistinct()]
                     }
             val m = mutableMapOf<Int, Long>()
             queryResult.map {
