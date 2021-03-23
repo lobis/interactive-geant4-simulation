@@ -1,27 +1,24 @@
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 
-val kotlinVersion = "1.4.0"
-val serializationVersion = "1.0.0-RC"
-val exposedVersion: String by project
-val ktorVersion: String by project
-
 plugins {
-    kotlin("multiplatform") version "1.4.0"
+    kotlin("multiplatform") version "1.4.32"
+    kotlin("plugin.serialization") version "1.4.32"
     application //to run JVM part
-    kotlin("plugin.serialization") version "1.4.0"
 }
+
+val exposedVersion: String by extra("0.29.1")
+val ktorVersion: String by extra("1.4.3")
 
 group = "org.example"
 version = "1.0-SNAPSHOT"
 
 repositories {
-    mavenLocal()
-    maven { url = uri("https://dl.bintray.com/kotlin/kotlinx") }
-    maven { setUrl("https://dl.bintray.com/kotlin/kotlin-eap") }
     mavenCentral()
     jcenter()
+//    mavenLocal()
+    maven("https://dl.bintray.com/kotlin/kotlinx")
     maven("https://kotlin.bintray.com/kotlin-js-wrappers/") // react, styled, ...
-    // plotly.kt
+    // plotly.kt (will be obsolete soon)
     maven("https://dl.bintray.com/mipt-npm/dataforge")
     maven("https://dl.bintray.com/mipt-npm/kscience")
     maven("https://dl.bintray.com/mipt-npm/dev")
@@ -31,24 +28,18 @@ kotlin {
     jvm {
         withJava()
     }
+
     js(IR) {
         browser()
         binaries.executable()
     }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
                 implementation(kotlin("stdlib-common"))
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:$serializationVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0")
+                implementation("kscience.plotlykt:plotlykt-core:0.3.1")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-
-            }
-        }
-        val commonTest by getting {
-            dependencies {
-                implementation(kotlin("test-common"))
-                implementation(kotlin("test-annotations-common"))
             }
         }
 
@@ -67,7 +58,7 @@ kotlin {
                 implementation("com.zaxxer:HikariCP:3.2.0")
                 implementation("org.postgresql:postgresql:42.1.4")
                 // plotly
-                implementation("kscience.plotlykt:plotlykt-server:0.3.0")
+                implementation("kscience.plotlykt:plotlykt-server:0.3.1")
             }
         }
 
@@ -84,7 +75,6 @@ kotlin {
                 implementation(npm("react-dom", "16.13.1"))
                 // plotly
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-js:1.4.2")
-                implementation("kscience.plotlykt:plotlykt-core:0.3.0")
             }
         }
     }
@@ -110,7 +100,7 @@ tasks.getByName<Jar>("jvmJar") {
 tasks {
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         kotlinOptions {
-            jvmTarget = "14"
+            jvmTarget = "11"
         }
     }
 }
