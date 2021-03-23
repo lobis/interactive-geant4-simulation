@@ -262,7 +262,7 @@ fun plotStuff() {
 
 fun main() {
 
-    plotStuff()
+    //plotStuff()
     //
 
     initDB()
@@ -282,6 +282,7 @@ fun main() {
         install(WebSockets)
 
         routing {
+            /*
             webSocket("/") {
                 val message = Message("world", listOf<Double>(12231.231, 231321.0, 223.2))
                 for (frame in incoming) {
@@ -292,6 +293,7 @@ fun main() {
                     send(Json.encodeToString(message))
                 }
             }
+             */
             get("/numberOfEvents") {
                 val runIDsRequested: List<String>? = call.request.queryParameters.getAll("runID")
                 if (runIDsRequested == null) {

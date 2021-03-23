@@ -8,14 +8,24 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.html.*
 import org.w3c.dom.HTMLInputElement
+//
+import kscience.plotly.Plot
+import kscience.plotly.Plotly
+import kscience.plotly.layout
+import kscience.plotly.models.Trace
+import kscience.plotly.models.invoke
+import kscience.plotly.plot
+import org.w3c.dom.HTMLElement
 import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.sin
 
-interface CommandsProps : RProps {
+
+external interface CommandsProps : RProps {
     var commands: Set<String>
 }
 
-interface CommandsState : RState {
+external interface CommandsState : RState {
     var commandsSent: MutableList<String>
 }
 
@@ -67,11 +77,17 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
     }
 }
 
+@ExperimentalJsExport
+fun RBuilder.commandsComponent(handler: CommandsProps.() -> Unit): ReactElement {
+    return child(CommandsComponent::class) {
+        this.attrs(handler)
+    }
+}
 
-interface EventSelectorState : RState {
+external interface EventSelectorState : RState {
     var counts: Counts
 };
-interface EventSelectorProps : RProps {
+external interface EventSelectorProps : RProps {
     var changes: ReceiveChannel<EventSelectorState.() -> Unit>
 };
 
@@ -112,7 +128,7 @@ class EventSelectorComponent(props: EventSelectorProps) : RComponent<EventSelect
     }
 }
 
-interface CountsTableProps : RProps {
+external interface CountsTableProps : RProps {
     var counts: Counts
 };
 
@@ -146,12 +162,12 @@ fun RBuilder.countsTableComponent(handler: CountsTableProps.() -> Unit): ReactEl
     }
 }
 
-interface SelectorProps : RProps {
+external interface SelectorProps : RProps {
     var runIDs: Set<Int>
     var eventIDs: Set<Int>
 }
 
-interface SelectorState : RState {
+external interface SelectorState : RState {
     var eventIDs: Set<Int>
     var currentEnergyPerVolume: Map<String, Double>
 }
@@ -244,4 +260,66 @@ fun RBuilder.SelectorComponent(handler: SelectorProps.() -> Unit): ReactElement 
     return child(SelectorComponent::class) {
         this.attrs(handler)
     }
+}
+
+external interface HistogramProps : RProps {
+    var divID: String
+}
+
+external interface HistogramState : RState {
+    var x: List<List<Number>>
+    var y: List<List<Number>>
+}
+
+@JsExport
+class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, HistogramState>(props) {
+    override fun HistogramState.init(props: HistogramProps) {
+        x = listOf(listOf<Number>(1, 2, 3, 4, 5, 22))
+        y = listOf(listOf<Number>(1, 2, 3, 2, 1, 33))
+    }
+
+    init {
+        state.init()
+        GlobalScope.launch {
+            while (isActive) {
+                delay(2000)
+                print("update!")
+                setState {
+                    x = listOf(listOf<Number>(1, 2, 3, 4, 10))
+                    y = listOf(listOf<Number>(1, 2, 3, 4, 10))
+                }
+            }
+        }
+    }
+
+    override fun RBuilder.render() {
+        val element = document.getElementById(props.divID) as? HTMLElement
+            ?: error("Element with id '${props.divID}' not found on page")
+        console.log("element loaded on ${props.divID}")
+        console.log(
+            "STATE:X ${state.x}"
+        )
+        element.plot {
+            val x = (0..100).map { it.toDouble() / 100.0 }.toDoubleArray()
+            val y1 = x.map { sin(2.0 * PI * it) }.toDoubleArray()
+            val y2 = x.map { cos(2.0 * PI * it) }.toDoubleArray()
+
+            val trace1 = Trace(x, y1) { name = "sin" }
+            val trace2 = Trace(x, y2) { name = "cos" }
+
+            traces(trace1, trace2)
+            layout {
+                title = "Graph"
+                xaxis { title = "x" }
+                yaxis { title = "y" }
+            }
+        }
+    }
+}
+
+fun RBuilder.histogramComponent(handler: HistogramProps.() -> Unit): ReactElement {
+    return child(HistogramComponent::class) {
+        this.attrs(handler)
+    }
+
 }
