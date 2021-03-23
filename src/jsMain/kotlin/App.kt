@@ -2,60 +2,14 @@ import io.ktor.client.fetch.*
 import react.*
 import react.dom.*
 import kotlinext.js.*
+import kotlinx.browser.document
 import kotlinx.html.js.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.html.*
-
-interface CounterProps : RProps {
-    var counts: Counts
-    var changes: ReceiveChannel<Change>
-}
-
-interface State : RState {
-    var counts: Counts
-}
-
-@ExperimentalJsExport
-@JsExport
-class Counter(props: CounterProps) : RComponent<CounterProps, State>(props) {
-    companion object {
-        const val id: String = "counter"
-    }
-
-    init {
-        GlobalScope.launch {
-            for (change in this@Counter.props.changes) {
-                setState(change)
-            }
-        }
-    }
-
-    override fun State.init(props: CounterProps) {
-        counts = props.counts
-    }
-
-    override fun RBuilder.render() {
-        table(classes = "table table-hover table-dark table-sm") {
-            attrs.id = "table-counts"
-            thead(classes = "thead-dark") {
-                tr {
-                    th(scope = ThScope.col) { +"runID" }
-                    th(scope = ThScope.col) { +"events" }
-                }
-            }
-            tbody {
-                state.counts.counts.map {
-                    tr {
-                        td { +"${it.key}" }
-                        td { +"${it.value}" }
-                    }
-                }
-            }
-        }
-
-    }
-}
+import org.w3c.dom.HTMLInputElement
+import kotlin.math.PI
+import kotlin.math.sin
 
 interface CommandsProps : RProps {
     var commands: Set<String>
@@ -113,50 +67,181 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
     }
 }
 
-interface PlotProps : RProps {
-}
 
-interface PlotState : RState {
-    var runIDs: Set<Int>
-    var eventIDs: Set<Int>
-}
+interface EventSelectorState : RState {
+    var counts: Counts
+};
+interface EventSelectorProps : RProps {
+    var changes: ReceiveChannel<EventSelectorState.() -> Unit>
+};
 
+@ExperimentalJsExport
 @JsExport
-class PlotComponent(props: PlotProps) : RComponent<PlotProps, PlotState>(props) {
+class EventSelectorComponent(props: EventSelectorProps) : RComponent<EventSelectorProps, EventSelectorState>(props) {
     companion object {
-        const val id: String = "plot-options"
+        const val id: String = "event-selector"
     }
 
-    override fun PlotState.init(props: PlotProps) {
-        runIDs = setOf<Int>(1, 2, 10, 23)
-        eventIDs = setOf<Int>(2, 2, 21, 2)
+    override fun EventSelectorState.init() {
+        counts = Counts()
+    }
+
+    init {
+        state.init()
+        GlobalScope.launch {
+            for (change in this@EventSelectorComponent.props.changes) {
+                setState(change)
+            }
+        }
     }
 
     override fun RBuilder.render() {
         div {
-            label { +"choose one" }
+            attrs.id = "counts-selector"
+            countsTableComponent {
+                counts = state.counts
+            }
+            div {
+                attrs.id = "run-event-selector"
+                SelectorComponent {
+                    runIDs = state.counts.getRunIDs()
+                    eventIDs = setOf()
+                }
+            }
+        }
+    }
+}
+
+interface CountsTableProps : RProps {
+    var counts: Counts
+};
+
+@JsExport
+class CountsTableComponent : RComponent<CountsTableProps, RState>() {
+
+    override fun RBuilder.render() {
+        table(classes = "table table-hover table-dark table-sm") {
+            attrs.id = "table-counts"
+            thead(classes = "thead-dark") {
+                tr {
+                    th(scope = ThScope.col) { +"runID" }
+                    th(scope = ThScope.col) { +"events" }
+                }
+            }
+            tbody {
+                props.counts.counts.map {
+                    tr {
+                        td { +"${it.key}" }
+                        td { +"${it.value}" }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun RBuilder.countsTableComponent(handler: CountsTableProps.() -> Unit): ReactElement {
+    return child(CountsTableComponent::class) {
+        this.attrs(handler)
+    }
+}
+
+interface SelectorProps : RProps {
+    var runIDs: Set<Int>
+    var eventIDs: Set<Int>
+}
+
+interface SelectorState : RState {
+    var eventIDs: Set<Int>
+    var currentEnergyPerVolume: Map<String, Double>
+}
+
+@JsExport
+class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, SelectorState>(props) {
+    override fun SelectorState.init(props: SelectorProps) {
+        eventIDs = setOf()
+        currentEnergyPerVolume = mapOf<String, Double>()
+    }
+
+    override fun RBuilder.render() {
+        div {
+            label { +"runID" }
         }
         input {
             attrs {
                 id = "runID-choice"
                 name = "runID-choice"
                 list = "runID-values"
-                onClickFunction = {
-                    println("Entered on click!")
-                    setState { runIDs = setOf<Int>(22) }
+                onChangeFunction = {
+                    val element = document.getElementById("runID-choice") as HTMLInputElement
+                    val runID = element.value.toIntOrNull()
+                    if (runID != null && runID in props.runIDs) {
+                        GlobalScope.launch(Dispatchers.Main) {
+                            val response: Set<Int> = getEventIDsFromRunID(runID)
+                            setState {
+                                eventIDs = response
+                            }
+                        }
+                    }
                 }
             }
         }
         dataList {
             attrs.id = "runID-values"
-            for (runID in state.runIDs) {
+            for (runID in props.runIDs) {
                 option {
                     attrs.value = runID.toString()
                 }
             }
         }
+        div {
+            label { +"eventID" }
+        }
+        input {
+            attrs {
+                id = "eventID-choice"
+                name = "eventID-choice"
+                list = "eventID-values"
+            }
+        }
+        dataList {
+            attrs.id = "eventID-values"
+            for (eventID in state.eventIDs) {
+                option {
+                    attrs.value = eventID.toString()
+                }
+            }
+        }
+        div {
+            attrs.id = "energy-per-volume"
+            button {
+                a { +"Compute energy per volume" }
+                attrs.onClickFunction = {
+                    var element = document.getElementById("runID-choice") as HTMLInputElement
+                    val runID = element.value.toIntOrNull()
+                    element = document.getElementById("eventID-choice") as HTMLInputElement
+                    val eventID = element.value.toIntOrNull()
+                    if (runID != null && eventID != null) {
+                        GlobalScope.launch(Dispatchers.Main) {
+                            val response: Map<String, Double> =
+                                getEventEnergyPerVolume(runID = runID, eventID = eventID)
+                            setState {
+                                currentEnergyPerVolume = response
+                            }
+                        }
+                    }
+                }
+            }
+            div {
+                attrs.id = "energy-per-volume-result"
+                +state.currentEnergyPerVolume.toString()
+            }
+        }
     }
 }
 
-
-
+fun RBuilder.SelectorComponent(handler: SelectorProps.() -> Unit): ReactElement {
+    return child(SelectorComponent::class) {
+        this.attrs(handler)
+    }
+}

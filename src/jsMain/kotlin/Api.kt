@@ -37,3 +37,15 @@ suspend fun sendCommand(command: String) {
 suspend fun clearDatabase() {
     return jsonClient.get("$endpoint/clear")
 }
+
+suspend fun getEventIDsFromRunID(runID: Int): Set<Int> {
+    return jsonClient.get("$endpoint/eventIDsFromRunID?runID=$runID")
+}
+
+suspend fun getEventEnergyPerVolume(runID: Int, eventID: Int): Map<String, Double> {
+    return jsonClient.get("$endpoint/energyPerVolume?runID=$runID&eventID=$eventID")
+}
+
+suspend fun getEventEnergyPerVolume(runID: Int, volume: String): Map<Int, Double> {
+    return jsonClient.get("$endpoint/energyInVolumeForRun?runID=$runID&volume=$volume")
+}

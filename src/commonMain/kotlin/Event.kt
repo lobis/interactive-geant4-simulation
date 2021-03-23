@@ -6,6 +6,14 @@ data class Counts(val counts: Map<Int, Long> = mapOf<Int, Long>()) {
     companion object {
         const val path = "/counts"
     }
+
+    fun getRunIDs(): Set<Int> {
+        val set = mutableSetOf<Int>()
+        counts.forEach {
+            set.add(it.key.toInt())
+        }
+        return set
+    }
 }
 
 
@@ -53,4 +61,9 @@ data class EventFull(
     companion object {
         const val path = "/eventFull"
     }
+}
+
+@Serializable
+data class Message(val volume: String, val energy: List<Double>) {
+
 }

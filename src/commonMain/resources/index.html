@@ -6,19 +6,33 @@
           href="https://cdn.rawgit.com/dreampulse/computer-modern-web-font/master/fonts.css">
     <link rel="stylesheet" href="style.css">
     <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <meta charset="UTF-8">
     <title>Interactive Geant4 Simulation</title>
 </head>
 <body>
 <div class="row" id="interface">
-    <div class="column" id="counter"></div>
+    <div class="column" id="event-selector"></div>
     <div class="column" id="commands"></div>
 </div>
-<div id="plot">
-    <div id="plot-options"></div>
+<div id="plotly">
+    <div class="wrapper">
+        <div id="histogram">
+        </div>
+    </div>
 </div>
+
+<div id="myplot"></div>
+
 <div id="static"></div>
 <script src="interactive-simulation.js"></script>
 <script src='myplot.js'></script>
+
+<script>
+    $(function () {
+        $("#myplot").load("plot.html");
+    });
+</script>
+
 </body>
 </html>

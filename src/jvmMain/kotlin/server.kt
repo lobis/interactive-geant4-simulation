@@ -10,9 +10,22 @@ import io.ktor.server.netty.*
 import org.jetbrains.exposed.sql.Database
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import io.ktor.http.cio.websocket.*
 import io.ktor.request.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.*
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+
+import hep.dataforge.meta.invoke
+import kscience.plotly.Plotly
+import kscience.plotly.ResourceLocation
+import kscience.plotly.makeFile
+import kscience.plotly.trace
+import kotlin.math.PI
+import kotlin.math.sin
 
 fun initDB() {
     try {
@@ -125,52 +138,56 @@ fun retrieveEventIDs(runID: Int = 0): List<Int>? {
     }
     return result
 };
-fun retrieveEnergyPerVolume(eventIDsToProcess: List<Int>? = null): MutableList<EventEnergyPerVolume> {
-
-    val eventEnergyPerVolumeList: MutableList<EventEnergyPerVolume> = mutableListOf()
-    initDB()
+fun retrieveEnergyInVolumeForRun(runID: Int, volume: String): Map<Int, Double> {
+    val result = mutableMapOf<Int, Double>()
     try {
         transaction {
-            val runID: Int = 0
-            var eventIDs: List<Int>
-            if (eventIDsToProcess == null) {
-                eventIDs =
-                    Events.slice(Events.eventID).select { Events.runID eq runID }.withDistinct().map {
-                        it[Events.eventID]
-                    }
-            } else {
-                eventIDs = eventIDsToProcess
+            for (pair in Events
+                .slice(Events.eDep.sum(), Events.eventID)
+                .select { (Events.volumeName eq volume) and (Events.runID eq runID) }
+                .groupBy(Events.eventID).map {
+                    //println("EventID: ${it[Events.eventID]} Energy: ${it[Events.eDep.sum()]}")
+                    it[Events.eventID] to it[Events.eDep.sum()]
+                }) {
+                result[pair.first] = pair.second!!
             }
-            println("EventIDs: $eventIDs")
+        }
+    } catch (e: Exception) {
+        println("Exception in 'retrieveEnergyInVolumeForRun': $e")
+    }
+    return result
+}
 
+fun retrieveEnergyPerVolumeForEvent(eventID: Int, runID: Int = 0): Map<String, Double> {
+
+    val result = mutableMapOf<String, Double>()
+    try {
+        transaction {
             val volumeNames =
                 Events.slice(Events.volumeName).select { Events.runID eq runID }.withDistinct().map {
                     it[Events.volumeName]
                 }
             println("VolumeNames: $volumeNames")
-
-            for (eventID in eventIDs) {
-                // compute the energy in each volume
-                val Energy = Events
-                    .slice(Events.eDep.sum(), Events.volumeName)
-                    .select { Events.eventID eq eventID }
-                    .groupBy(Events.volumeName)
-                //println("EventID: $eventID Energy:")
-                val energyPerVolume = mutableMapOf<String?, Double?>();
-                Energy.forEach {
-                    val volumeName: String? = it[Events.volumeName]
-                    val eDep: Double? = it[Events.eDep.sum()]
-                    energyPerVolume[volumeName] = eDep
-                }
-                val eventEnergyPerVolume: EventEnergyPerVolume = EventEnergyPerVolume(runID, eventID, energyPerVolume)
-                eventEnergyPerVolumeList.add(eventEnergyPerVolume)
+            // compute the energy in each volume
+            val Energy = Events
+                .slice(Events.eDep.sum(), Events.volumeName)
+                .select { Events.eventID eq eventID }
+                .groupBy(Events.volumeName)
+            //println("EventID: $eventID Energy:")
+            val energyPerVolume = mutableMapOf<String, Double?>();
+            Energy.forEach {
+                val volumeName: String = it[Events.volumeName]
+                val eDep: Double? = it[Events.eDep.sum()]
+                result[volumeName] = eDep!!
             }
         }
+
     } catch (e: Exception) {
         println("EXCEPTION: $e")
     }
-    return eventEnergyPerVolumeList
-};
+    return result
+}
+
 fun retrieveEventByID(eventID: Int, runID: Int = 0): EventFull? {
     var result: EventFull? = null
     try {
@@ -206,7 +223,35 @@ fun retrieveEventByID(eventID: Int, runID: Int = 0): EventFull? {
     return result
 };
 
+fun plotStuff() {
+    val x1 = (0..100).map { it.toDouble() / 100.0 }
+    val y1 = x1.map { sin(2.0 * PI * it) }
+
+    val plot = Plotly.plot {
+        trace {
+            x.set(x1)
+            y.set(y1)
+            name = "for a single trace in graph its name would be hidden"
+        }
+        layout {
+            title = "Graph name"
+            xaxis {
+                title = "x axis"
+            }
+            yaxis {
+                title = "y axis"
+            }
+        }
+    }
+
+    plot.makeFile(resourceLocation = ResourceLocation.EMBED)
+}
+
 fun main() {
+
+    plotStuff()
+    //
+
     initDB()
     embeddedServer(Netty, 8080) {
         install(ContentNegotiation) {
@@ -221,11 +266,18 @@ fun main() {
         install(Compression) {
             gzip()
         }
+        install(WebSockets)
+
         routing {
-            post("/command") {
-                val postParameters: Parameters = call.receiveParameters()
-                val command: String = postParameters["command"]!!
-                // maybe this is useless
+            webSocket("/") {
+                val message = Message("world", listOf<Double>(12231.231, 231321.0, 223.2))
+                for (frame in incoming) {
+                    frame as? Frame.Text ?: continue
+                    val receivedText = frame.readText()
+                    val result = retrieveEnergyInVolumeForRun(runID = 105, volume = "world")
+
+                    send(Json.encodeToString(message))
+                }
             }
             get("/numberOfEvents") {
                 val runIDsRequested: List<String>? = call.request.queryParameters.getAll("runID")
@@ -240,27 +292,45 @@ fun main() {
                     call.respond(number)
                 }
             }
+            get("/eventIDsFromRunID") {
+                var fail = true
+                val runIDs = call.request.queryParameters.getAll("runID")
+                println("runIDS: $runIDs")
+                if (runIDs?.size == 1 && runIDs[0].toIntOrNull() != null) {
+                    val runID: Int = runIDs[0].toInt()
+                    println("runID: $runID")
+                    val eventIDs = retrieveEventIDs(runID)
+                    if (eventIDs != null) {
+                        println("EVENTIDS: $eventIDs")
+                        fail = false
+                        call.respond(eventIDs)
+                    }
+                }
+                if (fail) call.respond(HttpStatusCode.NotFound)
+            }
+            get("/energyInVolumeForRun") {
+                val runID: Int? = call.request.queryParameters["runID"]?.toIntOrNull()
+                val volume: String? = call.request.queryParameters["volume"]
+                if (runID == null || volume == null) {
+                    call.respond(HttpStatusCode.BadRequest)
+                } else {
+                    val result = retrieveEnergyInVolumeForRun(runID = runID, volume = volume)
+                    call.respond(result)
+                }
+            }
             route(Counts.path) {
                 get {
                     call.respond(retrieveCounts())
                 }
             }
-            route(EventEnergyPerVolume.path) {
-                get {
-                    val eventIDs = retrieveEventIDs()
-                    call.respond(1)
-                }
-            }
-            route(EventEnergyPerVolume.path) {
-                get {
-                    //val queryString: String = call.request.queryString()
-                    val eventIDsRequested: List<String>? = call.request.queryParameters.getAll("eventID")
-                    val eventIDsAsInt = eventIDsRequested?.map {
-                        it.toInt()
-                    }
-
-                    val data = retrieveEnergyPerVolume(eventIDsAsInt)
-                    call.respond(data)
+            get("/energyPerVolume") {
+                val runID: Int? = call.request.queryParameters["runID"]?.toIntOrNull()
+                val eventID: Int? = call.request.queryParameters["eventID"]?.toIntOrNull()
+                if (runID == null || eventID == null) {
+                    // cannot continue
+                    call.respond(HttpStatusCode.BadRequest)
+                } else {
+                    call.respond(retrieveEnergyPerVolumeForEvent(runID = runID, eventID = eventID))
                 }
             }
             route(EventFull.path) {
@@ -276,7 +346,6 @@ fun main() {
                             println("eventID requested: $eventID")
                             val data: EventFull? = retrieveEventByID(eventID)
                             if (data != null) eventFullList.add(data)
-
                         }
                         call.respond(eventFullList)
                     }
