@@ -1,0 +1,21 @@
+version: '3.4'
+
+services:
+  database:
+    image: postgres:latest
+    environment:
+      POSTGRES_PASSWORD: defaultpassword
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+
+  geant4-rest-api:
+    image: lobis/geant4-rest-api:latest
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PASSWORD: defaultpassword
+    expose:
+      - "9080"
+    ports:
+      - "9080:9080"
