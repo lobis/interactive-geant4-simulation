@@ -1,29 +1,38 @@
-import io.ktor.application.*
-import io.ktor.features.*
-import io.ktor.http.*
-import io.ktor.http.content.*
-import io.ktor.response.*
-import io.ktor.routing.*
-import io.ktor.serialization.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import org.jetbrains.exposed.sql.Database
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.ktor.http.cio.websocket.*
-import io.ktor.request.*
-import io.ktor.websocket.*
-import kotlinx.coroutines.*
+import hep.dataforge.meta.invoke
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.features.CORS
+import io.ktor.features.Compression
+import io.ktor.features.ContentNegotiation
+import io.ktor.features.gzip
+import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.cio.websocket.Frame
+import io.ktor.http.cio.websocket.readText
+import io.ktor.http.cio.websocket.send
+import io.ktor.http.content.resources
+import io.ktor.http.content.static
+import io.ktor.response.respond
+import io.ktor.response.respondText
+import io.ktor.routing.get
+import io.ktor.routing.route
+import io.ktor.routing.routing
+import io.ktor.serialization.json
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.websocket.WebSockets
+import io.ktor.websocket.webSocket
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
-
-import hep.dataforge.meta.invoke
 import kscience.plotly.Plotly
 import kscience.plotly.ResourceLocation
 import kscience.plotly.makeFile
 import kscience.plotly.trace
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -104,7 +113,8 @@ fun retrieveCounts(): Counts {
         println("Exception on 'retrieveCounts': $e")
     }
     return result
-};
+}
+
 fun retrieveNumberOfEventIDs(runIDsRequested: List<Int>? = null): Long {
     var result: Long = 0
     try {
@@ -121,10 +131,12 @@ fun retrieveNumberOfEventIDs(runIDsRequested: List<Int>? = null): Long {
         println("Exception on 'retrieveEventIDs': $e")
     }
     return result
-};
+}
+
 fun retrieveNumberOfEventIDs(runID: Int): Long {
     return retrieveNumberOfEventIDs(listOf(runID))
-};
+}
+
 fun retrieveEventIDs(runID: Int = 0): List<Int>? {
     initDB()
     var result: List<Int>? = null
@@ -137,7 +149,8 @@ fun retrieveEventIDs(runID: Int = 0): List<Int>? {
         println("Exception on 'retrieveEventIDs': $e")
     }
     return result
-};
+}
+
 fun retrieveEnergyInVolumeForRun(runID: Int, volume: String): Map<Int, Double> {
     val result = mutableMapOf<Int, Double>()
     try {
@@ -174,7 +187,7 @@ fun retrieveEnergyPerVolumeForEvent(eventID: Int, runID: Int = 0): Map<String, D
                 .select { Events.eventID eq eventID }
                 .groupBy(Events.volumeName)
             //println("EventID: $eventID Energy:")
-            val energyPerVolume = mutableMapOf<String, Double?>();
+            val energyPerVolume = mutableMapOf<String, Double?>()
             Energy.forEach {
                 val volumeName: String = it[Events.volumeName]
                 val eDep: Double? = it[Events.eDep.sum()]
@@ -221,7 +234,7 @@ fun retrieveEventByID(eventID: Int, runID: Int = 0): EventFull? {
         result = null
     }
     return result
-};
+}
 
 fun plotStuff() {
     val x1 = (0..100).map { it.toDouble() / 100.0 }
