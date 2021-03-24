@@ -1,6 +1,7 @@
 
 button {
-    width: 100%
+    width: 100%;
+    padding: 5px;
 }
 
 h1 {
@@ -12,16 +13,18 @@ h1 {
 }
 
 .column {
-    flex: auto;
+    flex: 20%;
+    padding: 20px;
+}
+
+#canvas {
+    flex: 60%;
+    padding: 0;
 }
 
 textarea {
     width: 100%;
     height: auto;
-}
-
-#commands {
-    background-color: yellow;
 }
 
 #interface {

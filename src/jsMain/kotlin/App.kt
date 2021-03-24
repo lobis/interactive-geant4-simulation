@@ -274,6 +274,7 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
             histogramComponent {
                 id = "canvas"
             }
+            /*
             // checkbox to use all runs together
             div {
                 label {
@@ -286,6 +287,7 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
                     attrs.name = "checkAllRunIDs"
                 }
             }
+             */
             // energy resolution
             div {
                 label {
@@ -371,17 +373,20 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
 
         div {
             div {
+                +"Number of bins: ${state.nBinsX}"
+            }
+            div {
                 input {
                     attrs {
                         id = "nbinsx"
                         name = "nbinsx"
                         type = InputType.range
-                        min = "5"
-                        max = "200"
-                        step = "1"
+                        min = "10"
+                        max = "400"
+                        step = "5"
                         onChangeFunction = {
-                            val element = document.getElementById("nbinsx") as HTMLInputElement
-                            val n = element.value.toInt()
+                            val e = document.getElementById("nbinsx") as HTMLInputElement
+                            val n = e.value.toInt()
                             setState {
                                 nBinsX = n
                             }
@@ -389,20 +394,29 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                     }
 
                 }
-                label { +"Number of bins" }
             }
             div {
+                div {
+                    +"X axis range: (${state.xMin}, ${state.xMax})"
+                }
                 input {
                     attrs {
                         id = "xaxisrange"
                         name = "xaxisrange"
                         type = InputType.range
-                        min = "0"
+                        min = "200"
                         max = "2000"
-                        step = "10"
+                        step = "50"
+                        onChangeFunction = {
+                            val e = document.getElementById("xaxisrange") as HTMLInputElement
+                            val n = e.value.toDouble()
+                            setState {
+                                xMin = 0.0
+                                xMax = n
+                            }
+                        }
                     }
                 }
-                label { +"X axis range" }
             }
         }
 
@@ -410,14 +424,19 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
             histogram {
                 x.numbers = state.values
                 name = "Random data"
-                nbinsx = state.nBinsX
+                xbins {
+                    end = state.xMax
+                    start = state.xMin
+                    size = (state.xMax - state.xMin) / state.nBinsX
+                }
+                //nbinsx = state.nBinsX
             }
             layout {
                 bargap = 0.1
                 title {
                     text = "Energy deposited in volume '${state.volumeName}' for runID: ${state.runID}"
                     font {
-                        size = 20
+                        size = 25
                         color("black")
                     }
                 }
@@ -425,15 +444,17 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                     title {
                         text = "Energy (keV)"
                         font {
-                            size = 16
+                            size = 20
                         }
                     }
+                    autorange = false
+                    this.range = state.xMin..state.xMax
                 }
                 yaxis {
                     title {
                         text = "Counts"
                         font {
-                            size = 16
+                            size = 20
                         }
                     }
                 }
