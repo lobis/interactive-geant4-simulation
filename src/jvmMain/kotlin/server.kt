@@ -83,6 +83,28 @@ fun clearDatabase() {
     }
 }
 
+fun retrievePositionsAndEnergies(runID: Int, volume: String? = null): Map<String, List<Double>> {
+    val result = mutableMapOf<String, MutableList<Double>>()
+    result["x"] = mutableListOf<Double>()
+    result["y"] = mutableListOf<Double>()
+    result["z"] = mutableListOf<Double>()
+    result["eDep"] = mutableListOf<Double>()
+
+    try {
+        transaction {
+            Events.select { Events.runID eq runID }.forEach {
+                result["x"]?.add(it[Events.x])
+                result["y"]?.add(it[Events.y])
+                result["z"]?.add(it[Events.z])
+                result["eDep"]?.add(it[Events.eDep])
+            }
+        }
+    } catch (e: Exception) {
+        println("Exception on 'retrievePositionsAndEnergies': $e")
+    }
+    return result
+}
+
 fun retrieveCounts(): Counts {
     var result: Counts = Counts(mutableMapOf<Int, Long>())
     try {
@@ -292,6 +314,15 @@ fun main() {
                     }
                 }
                 if (fail) call.respond(HttpStatusCode.NotFound)
+            }
+            get("/retrievePositionsAndEnergies") {
+                val runID: Int? = call.request.queryParameters["runID"]?.toIntOrNull()
+                val volumeName: String? = call.request.queryParameters["volumeName"]
+                if (runID != null) {
+                    val result = retrievePositionsAndEnergies(runID = runID, volume = volumeName)
+                    call.respond(result)
+                }
+                call.respond(HttpStatusCode.NotFound)
             }
             get("/volumeNamesFromRunID") {
                 var fail = true

@@ -53,3 +53,7 @@ suspend fun getEventEnergyPerVolume(runID: Int, eventID: Int): Map<String, Doubl
 suspend fun getRunEnergyForVolume(runID: Int, volume: String, energyResolution: Double = 0.0): Map<Int, Double> {
     return jsonClient.get("$endpoint/energyInVolumeForRun?runID=$runID&volume=$volume&energyResolution=$energyResolution")
 }
+
+suspend fun retrievePositionsAndEnergies(runID: Int, volume: String? = null): Map<String, List<Double>> {
+    return jsonClient.get("$endpoint/retrievePositionsAndEnergies?runID=$runID&volume=$volume")
+}
