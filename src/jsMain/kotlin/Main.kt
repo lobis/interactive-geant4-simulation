@@ -23,100 +23,8 @@ typealias Change = EventSelectorState.() -> Unit
 
 // https://itnext.io/taming-react-with-kotlin-js-and-coroutines-ef0d3f72b3ea
 
-
-fun myplot(divID: String) {
-    val element = document.getElementById(divID) as? HTMLElement
-        ?: error("Element with id '$divID' not found on page")
-
-    console.log("element loaded")
-    element.plot {
-        scatter {
-            x(1, 2, 3, 4, 555)
-            y(10, 15, 13, 17, 555)
-            mode = ScatterMode.markers
-            type = TraceType.scatter
-        }
-        scatter {
-            x(2, 3, 4, 5)
-            y(10, 15, 13, 17)
-            mode = ScatterMode.lines
-            type = TraceType.scatter
-            marker.apply {
-                GlobalScope.launch {
-                    while (isActive) {
-                        delay(500)
-                        if (Random.nextBoolean()) {
-                            color("magenta")
-                        } else {
-                            color("blue")
-                        }
-                    }
-                }
-            }
-        }
-        scatter {
-            x(1, 2, 3, 4)
-            y(12, 5, 2, 12)
-            mode = ScatterMode.`lines+markers`
-            type = TraceType.scatter
-            marker {
-                color("red")
-            }
-        }
-        layout {
-            title = "Line and Scatter Plot"
-        }
-    }
-}
-
 @ExperimentalJsExport
 fun main() {
-/*
-    val element = document.getElementById("canvas") as? HTMLElement
-        ?: error("Element with id 'app' not found on page")
-
-    console.log("element loaded")
-    element.plot {
-        scatter {
-            x(1, 2, 3, 4)
-            y(10, 15, 13, 17)
-            mode = ScatterMode.markers
-            type = TraceType.scatter
-        }
-        scatter {
-            x(2, 3, 4, 5)
-            y(10, 15, 13, 17)
-            mode = ScatterMode.lines
-            type = TraceType.scatter
-            marker.apply {
-                GlobalScope.launch {
-                    while (isActive) {
-                        delay(500)
-                        if (Random.nextBoolean()) {
-                            color("magenta")
-                        } else {
-                            color("blue")
-                        }
-                    }
-                }
-            }
-        }
-        scatter {
-            x(1, 2, 3, 4)
-            y(12, 5, 2, 12)
-            mode = ScatterMode.`lines+markers`
-            type = TraceType.scatter
-            marker {
-                color("red")
-            }
-        }
-        layout {
-            title = "Line and Scatter Plot"
-        }
-    }
-
-*/
-
     //window.onload = {
 
     val channel = Channel<Change>(capacity = Channel.RENDEZVOUS)
@@ -154,7 +62,6 @@ fun main() {
 
 
     render(document.getElementById("plots")) {
-        h1 { +"TEST" }
         histogramComponent {
             divID = "canvas"
         }

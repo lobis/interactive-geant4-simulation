@@ -267,27 +267,31 @@ external interface HistogramProps : RProps {
 }
 
 external interface HistogramState : RState {
-    var x: List<List<Number>>
-    var y: List<List<Number>>
+    var trace: Trace
+    var dt: Double
 }
 
 @JsExport
 class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, HistogramState>(props) {
     override fun HistogramState.init(props: HistogramProps) {
-        x = listOf(listOf<Number>(1, 2, 3, 4, 5, 22))
-        y = listOf(listOf<Number>(1, 2, 3, 2, 1, 33))
+        console.log("state init")
+        dt = 0.0
+        val x = (0..100).map { it.toDouble() / 100.0 }.toDoubleArray()
+        val y = x.map { sin(2.0 * PI * (it - dt)) }.toDoubleArray()
+        trace = Trace(x, y) { name = "f" }
     }
 
     init {
         state.init()
         GlobalScope.launch {
             while (isActive) {
-                delay(2000)
-                print("update!")
-                setState {
-                    x = listOf(listOf<Number>(1, 2, 3, 4, 10))
-                    y = listOf(listOf<Number>(1, 2, 3, 4, 10))
-                }
+                state.dt = state.dt + 0.1
+                console.log("<update state to: ${state.dt}")
+                val x = (0..10000).map { it.toDouble() / 10000.0 }.toDoubleArray()
+                val y = x.map { sin((2.0 * PI + state.dt) * it) }.toDoubleArray()
+                state.trace = Trace(x, y) { name = "f" }
+                render()
+                delay(200)
             }
         }
     }
@@ -295,19 +299,9 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
     override fun RBuilder.render() {
         val element = document.getElementById(props.divID) as? HTMLElement
             ?: error("Element with id '${props.divID}' not found on page")
-        console.log("element loaded on ${props.divID}")
-        console.log(
-            "STATE:X ${state.x}"
-        )
+        console.log("element loaded on '${props.divID}'")
         element.plot {
-            val x = (0..100).map { it.toDouble() / 100.0 }.toDoubleArray()
-            val y1 = x.map { sin(2.0 * PI * it) }.toDoubleArray()
-            val y2 = x.map { cos(2.0 * PI * it) }.toDoubleArray()
-
-            val trace1 = Trace(x, y1) { name = "sin" }
-            val trace2 = Trace(x, y2) { name = "cos" }
-
-            traces(trace1, trace2)
+            traces(state.trace)
             layout {
                 title = "Graph"
                 xaxis { title = "x" }
