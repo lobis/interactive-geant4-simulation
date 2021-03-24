@@ -8,6 +8,7 @@ plugins {
 
 val exposedVersion: String by extra("0.29.1")
 val ktorVersion: String by extra("1.4.3")
+val plotlyKtVersion: String by extra("0.4.0-dev-2")
 
 group = "org.example"
 version = "1.0-SNAPSHOT"
@@ -15,13 +16,13 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenCentral()
     jcenter()
-//    mavenLocal()
     maven("https://dl.bintray.com/kotlin/kotlinx")
     maven("https://kotlin.bintray.com/kotlin-js-wrappers/") // react, styled, ...
-    // plotly.kt (will be obsolete soon)
     maven("https://dl.bintray.com/mipt-npm/dataforge")
     maven("https://dl.bintray.com/mipt-npm/kscience")
     maven("https://dl.bintray.com/mipt-npm/dev")
+    maven("https://repo.kotlin.link")
+    maven("https://mvnrepository.com/artifact/org.apache.commons/commons-math3")
 }
 
 kotlin {
@@ -38,7 +39,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(kotlin("stdlib-common"))
-                implementation("kscience.plotlykt:plotlykt-core:0.3.1")
+                implementation("space.kscience:plotlykt-core:$plotlyKtVersion")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
             }
         }
@@ -57,23 +58,19 @@ kotlin {
                 implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
                 implementation("com.zaxxer:HikariCP:3.2.0")
                 implementation("org.postgresql:postgresql:42.1.4")
-                // plotly
-                implementation("kscience.plotlykt:plotlykt-server:0.3.1")
+                implementation("org.apache.commons:commons-math3:3.6.1")
             }
         }
 
         val jsMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-js:$ktorVersion") //include http&websockets
-                //ktor client js json
                 implementation("io.ktor:ktor-client-json-js:$ktorVersion")
                 implementation("io.ktor:ktor-client-serialization-js:$ktorVersion")
-
                 implementation("org.jetbrains:kotlin-react:16.13.1-pre.110-kotlin-1.4.0")
                 implementation("org.jetbrains:kotlin-react-dom:16.13.1-pre.110-kotlin-1.4.0")
                 implementation(npm("react", "16.13.1"))
                 implementation(npm("react-dom", "16.13.1"))
-                // plotly
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-js:1.4.2")
             }
         }

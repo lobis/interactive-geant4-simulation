@@ -1,25 +1,16 @@
+// normal distribution
 import io.ktor.client.fetch.*
-import react.*
-import react.dom.*
 import kotlinext.js.*
 import kotlinx.browser.document
-import kotlinx.html.js.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.html.*
-import org.w3c.dom.HTMLInputElement
-//
-import kscience.plotly.Plot
-import kscience.plotly.Plotly
-import kscience.plotly.layout
-import kscience.plotly.models.Trace
-import kscience.plotly.models.invoke
-import kscience.plotly.plot
+import kotlinx.html.js.*
 import org.w3c.dom.HTMLElement
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
-
+import org.w3c.dom.HTMLInputElement
+import react.*
+import react.dom.*
+import space.kscience.plotly.*
 
 external interface CommandsProps : RProps {
     var commands: Set<String>
@@ -117,12 +108,12 @@ class EventSelectorComponent(props: EventSelectorProps) : RComponent<EventSelect
             countsTableComponent {
                 counts = state.counts
             }
-            div {
-                attrs.id = "run-event-selector"
-                SelectorComponent {
-                    runIDs = state.counts.getRunIDs()
-                    eventIDs = setOf()
-                }
+        }
+        div {
+            attrs.id = "run-event-selector"
+            SelectorComponent {
+                runIDs = state.counts.getRunIDs()
+                eventIDs = setOf()
             }
         }
     }
@@ -169,6 +160,7 @@ external interface SelectorProps : RProps {
 
 external interface SelectorState : RState {
     var eventIDs: Set<Int>
+    var volumeNames: Set<String>
     var currentEnergyPerVolume: Map<String, Double>
 }
 
@@ -176,7 +168,14 @@ external interface SelectorState : RState {
 class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, SelectorState>(props) {
     override fun SelectorState.init(props: SelectorProps) {
         eventIDs = setOf()
-        currentEnergyPerVolume = mapOf<String, Double>()
+        volumeNames = setOf()
+        currentEnergyPerVolume = mapOf()
+    }
+
+    private val runIdChoiceID: String = "runID-choice"
+    fun getSelectedRunID(): Int? {
+        val element = document.getElementById(runIdChoiceID) as HTMLInputElement
+        return element.value.toIntOrNull()
     }
 
     override fun RBuilder.render() {
@@ -186,16 +185,17 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
         input {
             attrs {
                 id = "runID-choice"
-                name = "runID-choice"
+                name = runIdChoiceID
                 list = "runID-values"
                 onChangeFunction = {
-                    val element = document.getElementById("runID-choice") as HTMLInputElement
-                    val runID = element.value.toIntOrNull()
+                    val runID = getSelectedRunID()
                     if (runID != null && runID in props.runIDs) {
                         GlobalScope.launch(Dispatchers.Main) {
-                            val response: Set<Int> = getEventIDsFromRunID(runID)
+                            val theEventIDs: Set<Int> = getEventIDsFromRunID(runID)
+                            val theVolumeNames: Set<String> = getVolumeNamesFromRunID(runID)
                             setState {
-                                eventIDs = response
+                                eventIDs = theEventIDs
+                                volumeNames = theVolumeNames
                             }
                         }
                     }
@@ -231,7 +231,7 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
         div {
             attrs.id = "energy-per-volume"
             button {
-                a { +"Compute energy per volume" }
+                a { +"Compute energy per volume for selected event" }
                 attrs.onClickFunction = {
                     var element = document.getElementById("runID-choice") as HTMLInputElement
                     val runID = element.value.toIntOrNull()
@@ -252,6 +252,57 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
                 attrs.id = "energy-per-volume-result"
                 +state.currentEnergyPerVolume.toString()
             }
+            // volume selector
+            div {
+                label { +"Volume" }
+            }
+            input {
+                attrs {
+                    id = "volumeName-choice"
+                    name = "volumeName-choice"
+                    list = "volumeName-values"
+                }
+            }
+            dataList {
+                attrs.id = "volumeName-values"
+                for (volumeName in state.volumeNames) {
+                    option {
+                        attrs.value = volumeName
+                    }
+                }
+            }
+            histogramComponent {
+                id = "canvas"
+            }
+            // checkbox to use all runs together
+            div {
+                label {
+                    //attrs.htmlFor = "checkAllRunIDs"
+                    +"Use all runIDs"
+                }
+                input {
+                    attrs.type = InputType.checkBox
+                    attrs.id = "checkAllRunIDs"
+                    attrs.name = "checkAllRunIDs"
+                }
+            }
+            // energy resolution
+            div {
+                label {
+                    //attrs.htmlFor = "energy-resolution"
+                    +"Energy resolution (%)"
+                }
+                input {
+                    attrs {
+                        type = InputType.number
+                        defaultValue = "5" // in %
+                        id = "energy-resolution"
+                        name = "energy-resolution"
+                    }
+                }
+            }
+
+
         }
     }
 }
@@ -263,49 +314,129 @@ fun RBuilder.SelectorComponent(handler: SelectorProps.() -> Unit): ReactElement 
 }
 
 external interface HistogramProps : RProps {
-    var divID: String
+    var id: String // id of div
 }
 
 external interface HistogramState : RState {
-    var trace: Trace
-    var dt: Double
+    var runID: Int
+    var volumeName: String
+    var values: List<Double>
+    var xMin: Double
+    var xMax: Double
+    var nBinsX: Int
 }
 
 @JsExport
 class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, HistogramState>(props) {
     override fun HistogramState.init(props: HistogramProps) {
-        console.log("state init")
-        dt = 0.0
-        val x = (0..100).map { it.toDouble() / 100.0 }.toDoubleArray()
-        val y = x.map { sin(2.0 * PI * (it - dt)) }.toDoubleArray()
-        trace = Trace(x, y) { name = "f" }
+        runID = 0
+        volumeName = "target"
+        values = listOf()
+        xMin = 0.0
+        xMax = 1000.0
+        nBinsX = 100
     }
 
     init {
         state.init()
         GlobalScope.launch {
             while (isActive) {
-                state.dt = state.dt + 0.1
-                console.log("<update state to: ${state.dt}")
-                val x = (0..10000).map { it.toDouble() / 10000.0 }.toDoubleArray()
-                val y = x.map { sin((2.0 * PI + state.dt) * it) }.toDoubleArray()
-                state.trace = Trace(x, y) { name = "f" }
-                render()
-                delay(200)
+                var element = document.getElementById("runID-choice") as HTMLInputElement
+                val runIDorNull = element.value.toIntOrNull()
+                element = document.getElementById("volumeName-choice") as HTMLInputElement
+                val TheVolumeName: String = element.value
+                if (runIDorNull != null && TheVolumeName != "") {
+                    val energyResolution: Double =
+                        (document.getElementById("energy-resolution") as HTMLInputElement).value.toDoubleOrNull() ?: 0.0
+                    val energies = getRunEnergyForVolume(
+                        runID = runIDorNull,
+                        volume = TheVolumeName,
+                        energyResolution = energyResolution / 100.0 // in %
+                    ).map { it.value }
+
+                    setState {
+                        runID = runIDorNull
+                        volumeName = TheVolumeName
+                        values = energies
+                    }
+                }
+                delay(1000)
             }
         }
     }
 
     override fun RBuilder.render() {
-        val element = document.getElementById(props.divID) as? HTMLElement
-            ?: error("Element with id '${props.divID}' not found on page")
-        console.log("element loaded on '${props.divID}'")
+        val element = document.getElementById(props.id) as? HTMLElement
+            ?: error("Element with id '${props.id}' not found on page")
+
+        div {
+            div {
+                input {
+                    attrs {
+                        id = "nbinsx"
+                        name = "nbinsx"
+                        type = InputType.range
+                        min = "5"
+                        max = "200"
+                        step = "1"
+                        onChangeFunction = {
+                            val element = document.getElementById("nbinsx") as HTMLInputElement
+                            val n = element.value.toInt()
+                            setState {
+                                nBinsX = n
+                            }
+                        }
+                    }
+
+                }
+                label { +"Number of bins" }
+            }
+            div {
+                input {
+                    attrs {
+                        id = "xaxisrange"
+                        name = "xaxisrange"
+                        type = InputType.range
+                        min = "0"
+                        max = "2000"
+                        step = "10"
+                    }
+                }
+                label { +"X axis range" }
+            }
+        }
+
         element.plot {
-            traces(state.trace)
+            histogram {
+                x.numbers = state.values
+                name = "Random data"
+                nbinsx = state.nBinsX
+            }
             layout {
-                title = "Graph"
-                xaxis { title = "x" }
-                yaxis { title = "y" }
+                bargap = 0.1
+                title {
+                    text = "Energy deposited in volume '${state.volumeName}' for runID: ${state.runID}"
+                    font {
+                        size = 20
+                        color("black")
+                    }
+                }
+                xaxis {
+                    title {
+                        text = "Energy (keV)"
+                        font {
+                            size = 16
+                        }
+                    }
+                }
+                yaxis {
+                    title {
+                        text = "Counts"
+                        font {
+                            size = 16
+                        }
+                    }
+                }
             }
         }
     }
@@ -315,5 +446,4 @@ fun RBuilder.histogramComponent(handler: HistogramProps.() -> Unit): ReactElemen
     return child(HistogramComponent::class) {
         this.attrs(handler)
     }
-
 }

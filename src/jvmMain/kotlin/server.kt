@@ -1,6 +1,5 @@
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import hep.dataforge.meta.invoke
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.CORS
@@ -10,9 +9,6 @@ import io.ktor.features.gzip
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.readText
-import io.ktor.http.cio.websocket.send
 import io.ktor.http.content.resources
 import io.ktor.http.content.static
 import io.ktor.response.respond
@@ -24,17 +20,12 @@ import io.ktor.serialization.json
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.websocket.WebSockets
-import io.ktor.websocket.webSocket
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kscience.plotly.Plotly
-import kscience.plotly.ResourceLocation
-import kscience.plotly.makeFile
-import kscience.plotly.trace
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import kotlin.math.PI
-import kotlin.math.sin
+import org.apache.commons.math3.distribution.NormalDistribution
+import org.apache.commons.math3.random.BitsStreamGenerator
+import org.apache.commons.math3.random.ISAACRandom
+import kotlin.math.*
 
 fun initDB() {
     try {
@@ -138,7 +129,6 @@ fun retrieveNumberOfEventIDs(runID: Int): Long {
 }
 
 fun retrieveEventIDs(runID: Int = 0): List<Int>? {
-    initDB()
     var result: List<Int>? = null
     try {
         transaction {
@@ -151,18 +141,40 @@ fun retrieveEventIDs(runID: Int = 0): List<Int>? {
     return result
 }
 
-fun retrieveEnergyInVolumeForRun(runID: Int, volume: String): Map<Int, Double> {
+fun retrieveVolumeNames(runID: Int = 0): List<String>? {
+    var result: List<String>? = null
+    try {
+        transaction {
+            result =
+                Events.slice(Events.volumeName).select { Events.runID eq runID }.withDistinct()
+                    .map { it[Events.volumeName] }
+        }
+    } catch (e: Exception) {
+        println("Exception on 'retrieveEventIDs': $e")
+    }
+    return result
+}
+
+fun retrieveEnergyInVolumeForRun(runID: Int, volume: String, energyResolution: Double = 0.0): Map<Int, Double> {
     val result = mutableMapOf<Int, Double>()
     try {
         transaction {
+            val rng = ISAACRandom(0)
             for (pair in Events
                 .slice(Events.eDep.sum(), Events.eventID)
                 .select { (Events.volumeName eq volume) and (Events.runID eq runID) }
                 .groupBy(Events.eventID).map {
-                    //println("EventID: ${it[Events.eventID]} Energy: ${it[Events.eDep.sum()]}")
                     it[Events.eventID] to it[Events.eDep.sum()]
                 }) {
-                result[pair.first] = pair.second!!
+                result[pair.first] =
+                    if (energyResolution > 0.0) max(
+                        0.0, NormalDistribution(
+                            rng,
+                            pair.second!!,
+                            pair.second!! * energyResolution / 2.355
+                        ).sample()
+                    )
+                    else pair.second!!
             }
         }
     } catch (e: Exception) {
@@ -236,35 +248,7 @@ fun retrieveEventByID(eventID: Int, runID: Int = 0): EventFull? {
     return result
 }
 
-fun plotStuff() {
-    val x1 = (0..100).map { it.toDouble() / 100.0 }
-    val y1 = x1.map { sin(2.0 * PI * it) }
-
-    val plot = Plotly.plot {
-        trace {
-            x.set(x1)
-            y.set(y1)
-            name = "for a single trace in graph its name would be hidden"
-        }
-        layout {
-            title = "Graph name"
-            xaxis {
-                title = "x axis"
-            }
-            yaxis {
-                title = "y axis"
-            }
-        }
-    }
-
-    plot.makeFile(resourceLocation = ResourceLocation.EMBED)
-}
-
 fun main() {
-
-    //plotStuff()
-    //
-
     initDB()
     embeddedServer(Netty, 8080) {
         install(ContentNegotiation) {
@@ -282,18 +266,6 @@ fun main() {
         install(WebSockets)
 
         routing {
-            /*
-            webSocket("/") {
-                val message = Message("world", listOf<Double>(12231.231, 231321.0, 223.2))
-                for (frame in incoming) {
-                    frame as? Frame.Text ?: continue
-                    val receivedText = frame.readText()
-                    val result = retrieveEnergyInVolumeForRun(runID = 105, volume = "world")
-
-                    send(Json.encodeToString(message))
-                }
-            }
-             */
             get("/numberOfEvents") {
                 val runIDsRequested: List<String>? = call.request.queryParameters.getAll("runID")
                 if (runIDsRequested == null) {
@@ -310,10 +282,8 @@ fun main() {
             get("/eventIDsFromRunID") {
                 var fail = true
                 val runIDs = call.request.queryParameters.getAll("runID")
-                println("runIDS: $runIDs")
                 if (runIDs?.size == 1 && runIDs[0].toIntOrNull() != null) {
                     val runID: Int = runIDs[0].toInt()
-                    println("runID: $runID")
                     val eventIDs = retrieveEventIDs(runID)
                     if (eventIDs != null) {
                         println("EVENTIDS: $eventIDs")
@@ -323,14 +293,39 @@ fun main() {
                 }
                 if (fail) call.respond(HttpStatusCode.NotFound)
             }
+            get("/volumeNamesFromRunID") {
+                var fail = true
+                val runIDs = call.request.queryParameters.getAll("runID")
+                if (runIDs?.size == 1 && runIDs[0].toIntOrNull() != null) {
+                    val runID: Int = runIDs[0].toInt()
+                    val volumeNames = retrieveVolumeNames(runID)
+                    if (volumeNames != null) {
+                        println("VOLUMENAMES: $volumeNames")
+                        fail = false
+                        call.respond(volumeNames)
+                    }
+                }
+                if (fail) call.respond(HttpStatusCode.NotFound)
+            }
             get("/energyInVolumeForRun") {
                 val runID: Int? = call.request.queryParameters["runID"]?.toIntOrNull()
                 val volume: String? = call.request.queryParameters["volume"]
+                // energy resolution is a temporary thing for demonstration
+                val energyResolution: Double? = call.request.queryParameters["energyResolution"]?.toDoubleOrNull()
                 if (runID == null || volume == null) {
                     call.respond(HttpStatusCode.BadRequest)
                 } else {
-                    val result = retrieveEnergyInVolumeForRun(runID = runID, volume = volume)
-                    call.respond(result)
+                    if (energyResolution == null) {
+                        val result = retrieveEnergyInVolumeForRun(runID = runID, volume = volume)
+                        call.respond(result)
+                    } else {
+                        val result = retrieveEnergyInVolumeForRun(
+                            runID = runID,
+                            volume = volume,
+                            energyResolution = energyResolution
+                        )
+                        call.respond(result)
+                    }
                 }
             }
             route(Counts.path) {

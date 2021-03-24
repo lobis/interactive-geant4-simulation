@@ -42,10 +42,14 @@ suspend fun getEventIDsFromRunID(runID: Int): Set<Int> {
     return jsonClient.get("$endpoint/eventIDsFromRunID?runID=$runID")
 }
 
+suspend fun getVolumeNamesFromRunID(runID: Int): Set<String> {
+    return jsonClient.get("$endpoint/volumeNamesFromRunID?runID=$runID")
+}
+
 suspend fun getEventEnergyPerVolume(runID: Int, eventID: Int): Map<String, Double> {
     return jsonClient.get("$endpoint/energyPerVolume?runID=$runID&eventID=$eventID")
 }
 
-suspend fun getEventEnergyPerVolume(runID: Int, volume: String): Map<Int, Double> {
-    return jsonClient.get("$endpoint/energyInVolumeForRun?runID=$runID&volume=$volume")
+suspend fun getRunEnergyForVolume(runID: Int, volume: String, energyResolution: Double = 0.0): Map<Int, Double> {
+    return jsonClient.get("$endpoint/energyInVolumeForRun?runID=$runID&volume=$volume&energyResolution=$energyResolution")
 }
