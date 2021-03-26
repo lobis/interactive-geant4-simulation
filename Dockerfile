@@ -1,21 +1,18 @@
-FROM gradle:jdk11-hotspot
-COPY . /home/src
-
-RUN ["/bin/bash"]
-
-
 FROM gradle:jdk11-hotspot AS build
 
-COPY . /home/gradle/src
-WORKDIR /home/gradle/src
-RUN gradle build --no-daemon
+ARG source=/home/gradle/src
+COPY . $source
+WORKDIR $source
+RUN gradle installDist
 
+#
 FROM openjdk:11-jre-slim
+ARG source=/home/gradle/src
 
 EXPOSE 8080
 
 RUN mkdir /app
 
-COPY --from=build /home/gradle/src/build/libs/*.jar /app/interactive-geant4-simulation.jar
+COPY --from=build $source/build/install /app/
 
-ENTRYPOINT ["java", "-XX:+UnlockExperimentalVMOptions", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/interactive-geant4-simulation.jar"]
+ENTRYPOINT ["/bin/bash", "app/interactive-simulation/bin/interactive-simulation"]
