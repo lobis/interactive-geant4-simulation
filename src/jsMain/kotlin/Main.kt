@@ -10,7 +10,6 @@ typealias Change = EventSelectorState.() -> Unit
 fun main() {
 
     val channel = Channel<Change>(capacity = Channel.RENDEZVOUS)
-
     GlobalScope.launch(Dispatchers.Main) {
         while (isActive) {
             val c = getCounts()
@@ -19,7 +18,6 @@ fun main() {
             }
             delay(500)
         }
-
     }
 
     render(

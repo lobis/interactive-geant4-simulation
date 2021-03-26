@@ -19,3 +19,14 @@ services:
       - "9080"
     ports:
       - "9080:9080"
+
+  webservice:
+    image: lobis/interactive-simulation:latest
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PASSWORD: defaultpassword
+      SIMULATION_HOST: geant4-rest-api
+    expose:
+      - "8080"
+    ports:
+      - "8080:8080"

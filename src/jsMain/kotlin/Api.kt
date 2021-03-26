@@ -1,10 +1,12 @@
-import io.ktor.http.*
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.features.json.serializer.KotlinxSerializer
 import io.ktor.content.*
+import io.ktor.http.*
 import kotlinx.browser.window
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 val endpoint = window.location.origin // only needed until https://github.com/ktorio/ktor/issues/1695 is resolved
 
@@ -25,12 +27,13 @@ suspend fun getCounts(): Counts {
 }
 
 suspend fun sendCommand(command: String) {
-    jsonClient.post<String>("http://localhost:9080/send/") {
+    jsonClient.post<Command>(endpoint + Command.path) {
         println("send post command: $command")
         body = TextContent(
-            text = "command=$command",
-            contentType = ContentType.Text.Plain
+            text = Json.encodeToString(Command(command)),
+            contentType = ContentType.Application.Json
         )
+
     }
 }
 

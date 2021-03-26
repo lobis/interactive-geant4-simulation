@@ -1,4 +1,3 @@
-// normal distribution
 import io.ktor.client.fetch.*
 import kotlinext.js.*
 import kotlinx.browser.document

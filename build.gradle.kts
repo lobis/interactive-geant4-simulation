@@ -41,6 +41,7 @@ kotlin {
                 implementation(kotlin("stdlib-common"))
                 implementation("space.kscience:plotlykt-core:$plotlyKtVersion")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
+                implementation("io.github.cdimascio:dotenv-kotlin:6.2.2")
             }
         }
 
@@ -51,6 +52,7 @@ kotlin {
                 implementation("io.ktor:ktor-server-netty:$ktorVersion")
                 implementation("io.ktor:ktor-websockets:$ktorVersion")
                 implementation("io.ktor:ktor-html-builder:$ktorVersion")
+                implementation("io.ktor:ktor-client-apache:$ktorVersion")
                 implementation("ch.qos.logback:logback-classic:1.2.3")
                 implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.7.2")
                 implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
@@ -72,6 +74,8 @@ kotlin {
                 implementation(npm("react", "16.13.1"))
                 implementation(npm("react-dom", "16.13.1"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-js:1.4.2")
+                implementation("io.github.cdimascio:dotenv-kotlin:6.2.2")
+                implementation(npm("dotenv", "8.2.0"))
             }
         }
     }

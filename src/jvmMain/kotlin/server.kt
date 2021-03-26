@@ -1,7 +1,8 @@
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
+import io.ktor.client.*
+import io.ktor.client.engine.apache.*
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.client.request.*
 import io.ktor.features.CORS
 import io.ktor.features.Compression
 import io.ktor.features.ContentNegotiation
@@ -9,13 +10,12 @@ import io.ktor.features.gzip
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.resources
-import io.ktor.http.content.static
+import io.ktor.http.content.*
+import io.ktor.request.*
 import io.ktor.response.respond
 import io.ktor.response.respondText
+import io.ktor.routing.*
 import io.ktor.routing.get
-import io.ktor.routing.route
-import io.ktor.routing.routing
 import io.ktor.serialization.json
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -23,17 +23,20 @@ import io.ktor.websocket.WebSockets
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.apache.commons.math3.distribution.NormalDistribution
-import org.apache.commons.math3.random.BitsStreamGenerator
 import org.apache.commons.math3.random.ISAACRandom
 import kotlin.math.*
 
 fun initDB() {
     try {
-        val config = HikariConfig("/hikari.properties")
-        val ds = HikariDataSource(config)
-        Database.connect(ds)
+        val host: String = System.getenv("POSTGRES_HOST") ?: "localhost"
+        val password: String = System.getenv("POSTGRES_PASSWORD") ?: "defaultpassword"
+
+        val url = "jdbc:postgresql://$host:5432/postgres"
+        Database.connect(url = url, user = "postgres", password = "$password")
+        println("Successful connection to DB! ($url)")
+
     } catch (e: Exception) {
-        println("Exception in 'initDB': $e")
+        println("$e, Exception in 'initDB', Probably host not connected")
     }
 }
 
@@ -85,10 +88,10 @@ fun clearDatabase() {
 
 fun retrievePositionsAndEnergies(runID: Int, volume: String? = null): Map<String, List<Double>> {
     val result = mutableMapOf<String, MutableList<Double>>()
-    result["x"] = mutableListOf<Double>()
-    result["y"] = mutableListOf<Double>()
-    result["z"] = mutableListOf<Double>()
-    result["eDep"] = mutableListOf<Double>()
+    result["x"] = mutableListOf()
+    result["y"] = mutableListOf()
+    result["z"] = mutableListOf()
+    result["eDep"] = mutableListOf()
 
     try {
         transaction {
@@ -122,8 +125,11 @@ fun retrieveCounts(): Counts {
             result = Counts(m)
 
         }
+    } catch (e: java.lang.IllegalStateException) {
+        println("Exception on 'retrieveCounts': $e (most likely host not reachable), trying again...")
+        initDB()
     } catch (e: Exception) {
-        println("Exception on 'retrieveCounts': $e")
+        println("Other exception on 'retrieveCounts': $e")
     }
     return result
 }
@@ -323,6 +329,7 @@ fun main() {
                     call.respond(result)
                 }
                 call.respond(HttpStatusCode.NotFound)
+
             }
             get("/volumeNamesFromRunID") {
                 var fail = true
@@ -402,9 +409,25 @@ fun main() {
                 clearDatabase()
                 call.respond(HttpStatusCode.OK)
             }
+            post(Command.path) {
+                val command = call.receive<Command>().command
+                val httpClient = HttpClient(Apache)
+                val host: String = System.getenv("SIMULATION_HOST") ?: "localhost"
+                println("Sending command: '$command' to '$host'")
+                httpClient.post<String>("http://$host:9080/send/") {
+                    println("send post command: $command")
+                    body = TextContent(
+                        text = "command=$command",
+                        contentType = ContentType.Text.Plain
+                    )
+                }
+                call.respond(HttpStatusCode.OK)
+            }
             static("/") {
                 resources("")
             }
         }
     }.start(wait = true)
+
+
 }
