@@ -41,6 +41,7 @@ kotlin {
                 implementation(kotlin("stdlib-common"))
                 implementation("space.kscience:plotlykt-core:$plotlyKtVersion")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
+                implementation("io.ktor:ktor-client-serialization:$ktorVersion")
                 implementation("io.github.cdimascio:dotenv-kotlin:6.2.2")
             }
         }

@@ -1,5 +1,6 @@
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
+import io.ktor.client.engine.*
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.client.request.*
@@ -20,6 +21,9 @@ import io.ktor.serialization.json
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.websocket.WebSockets
+import io.ktor.client.features.json.JsonFeature
+import io.ktor.client.features.json.serializer.KotlinxSerializer
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.apache.commons.math3.distribution.NormalDistribution
@@ -278,6 +282,12 @@ fun retrieveEventByID(eventID: Int, runID: Int = 0): EventFull? {
 
 fun main() {
     initDB()
+    val httpClient = HttpClient {
+        install(JsonFeature) {
+            serializer = KotlinxSerializer()
+            accept(ContentType.Application.Json)
+        }
+    }
     embeddedServer(Netty, 8080) {
         install(ContentNegotiation) {
             json()
@@ -411,7 +421,6 @@ fun main() {
             }
             post(Command.path) {
                 val command = call.receive<Command>().command
-                val httpClient = HttpClient(Apache)
                 val host: String = System.getenv("SIMULATION_HOST") ?: "localhost"
                 println("Sending command: '$command' to '$host'")
                 httpClient.post<String>("http://$host:9080/send/") {

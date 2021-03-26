@@ -7,6 +7,7 @@ import react.dom.h1
 typealias Change = EventSelectorState.() -> Unit
 
 @ExperimentalJsExport
+@JsExport
 fun main() {
 
     val channel = Channel<Change>(capacity = Channel.RENDEZVOUS)
