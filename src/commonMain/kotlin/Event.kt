@@ -1,5 +1,12 @@
 import kotlinx.serialization.Serializable
 
+@Serializable
+data class Command(val command: String) {
+    companion object {
+        const val path = "/command"
+    }
+}
+
 
 @Serializable
 data class Counts(val counts: Map<Int, Long> = mapOf()) {

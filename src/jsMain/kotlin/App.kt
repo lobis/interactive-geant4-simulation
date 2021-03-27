@@ -1,6 +1,3 @@
-// normal distribution
-@file:Suppress("EXPERIMENTAL_API_USAGE")
-
 import io.ktor.client.fetch.*
 import kotlinext.js.*
 import kotlinx.browser.document
@@ -53,7 +50,7 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
             a { +"Clear Database" }
             attrs.id = "clear-database-button"
             attrs.onClickFunction = {
-                GlobalScope.launch(Dispatchers.Default) {
+                GlobalScope.launch(Dispatchers.Main) {
                     clearDatabase()
                 }
             }

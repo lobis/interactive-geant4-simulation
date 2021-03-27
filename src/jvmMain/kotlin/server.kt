@@ -1,5 +1,9 @@
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.client.HttpClient
+import io.ktor.client.features.json.JsonFeature
+import io.ktor.client.features.json.serializer.KotlinxSerializer
+import io.ktor.client.request.post
 import io.ktor.features.CORS
 import io.ktor.features.Compression
 import io.ktor.features.ContentNegotiation
@@ -7,11 +11,14 @@ import io.ktor.features.gzip
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.content.resources
 import io.ktor.http.content.static
+import io.ktor.request.receive
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.get
+import io.ktor.routing.post
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.serialization.json
@@ -22,6 +29,12 @@ import io.ktor.websocket.WebSockets
 
 fun main() {
     initDB()
+    val httpClient = HttpClient {
+        install(JsonFeature) {
+            serializer = KotlinxSerializer()
+            accept(ContentType.Application.Json)
+        }
+    }
     embeddedServer(Netty, 8080) {
         install(ContentNegotiation) {
             json()
@@ -73,6 +86,7 @@ fun main() {
                     call.respond(result)
                 }
                 call.respond(HttpStatusCode.NotFound)
+
             }
             get("/volumeNamesFromRunID") {
                 var fail = true
@@ -152,9 +166,24 @@ fun main() {
                 clearDatabase()
                 call.respond(HttpStatusCode.OK)
             }
+            post(Command.path) {
+                val command = call.receive<Command>().command
+                val host: String = System.getenv("SIMULATION_HOST") ?: "localhost"
+                println("Sending command: '$command' to '$host'")
+                httpClient.post<String>("http://$host:9080/send/") {
+                    println("send post command: $command")
+                    body = TextContent(
+                        text = "command=$command",
+                        contentType = ContentType.Text.Plain
+                    )
+                }
+                call.respond(HttpStatusCode.OK)
+            }
             static("/") {
                 resources("")
             }
         }
     }.start(wait = true)
+
+
 }

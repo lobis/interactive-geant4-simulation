@@ -1,4 +1,4 @@
-version: '3.4'
+version: "3.8"
 
 services:
   database:
@@ -9,6 +9,12 @@ services:
       - "5432"
     ports:
       - "5432:5432"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
   geant4-rest-api:
     image: lobis/geant4-rest-api:latest
@@ -17,5 +23,26 @@ services:
       POSTGRES_PASSWORD: defaultpassword
     expose:
       - "9080"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  webservice:
+    image: lobis/interactive-simulation:latest
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PASSWORD: defaultpassword
+      SIMULATION_HOST: geant4-rest-api
+    expose:
+      - "8080"
     ports:
-      - "9080:9080"
+      - "8080:8080"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
