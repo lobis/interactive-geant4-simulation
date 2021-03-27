@@ -34,8 +34,8 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
     override fun RBuilder.render() {
         props.commands.map {
             val command: String = it
-            button {
-                a { +command }
+            button(classes = "btn btn-outline-primary") {
+                +command
                 attrs.id = command
                 attrs.onClickFunction = {
                     GlobalScope.launch(Dispatchers.Default) {
@@ -47,8 +47,8 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                 }
             }
         }
-        button {
-            a { +"Clear Database" }
+        button(classes = "btn btn-outline-danger", type = ButtonType.reset) {
+            +"Clear Database"
             attrs.id = "clear-database-button"
             attrs.onClickFunction = {
                 GlobalScope.launch(Dispatchers.Default) {
@@ -67,8 +67,8 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                     readonly = false
                 }
             }
-            button {
-                a { +"Send User Defined Commands" }
+            button(classes = "btn btn-warning") {
+                +"Send User Defined Commands"
                 attrs.id = "user-defined-commands-send"
                 attrs.onClickFunction = {
                     val element = document.getElementById(userDefinedCommandsTextAreaID) as HTMLTextAreaElement
@@ -150,27 +150,45 @@ class EventSelectorComponent(props: EventSelectorProps) : RComponent<EventSelect
     }
 }
 
+external interface CountsTableState : RState {
+    var toggle: Boolean
+};
+
 external interface CountsTableProps : RProps {
     var counts: Counts
 };
 
 @JsExport
-class CountsTableComponent : RComponent<CountsTableProps, RState>() {
+class CountsTableComponent : RComponent<CountsTableProps, CountsTableState>() {
+    override fun CountsTableState.init(props: CountsTableProps) {
+        toggle = true
+    }
 
     override fun RBuilder.render() {
-        table(classes = "table table-hover table-dark table-sm") {
-            attrs.id = "table-counts"
-            thead(classes = "thead-dark") {
-                tr {
-                    th(scope = ThScope.col) { +"runID" }
-                    th(scope = ThScope.col) { +"events" }
+        button(classes = "btn btn-outline-light") {
+            attrs.id = "table-counts-toggle"
+            +"Toggle Couns Table"
+            attrs.onClickFunction = {
+                setState {
+                    toggle = !toggle
                 }
             }
-            tbody {
-                props.counts.counts.map {
+        }
+        if (!state.toggle) {
+            table(classes = "table table-hover table-dark table-sm") {
+                attrs.id = "table-counts"
+                thead(classes = "thead-dark") {
                     tr {
-                        td { +"${it.key}" }
-                        td { +"${it.value}" }
+                        th(scope = ThScope.col) { +"runID" }
+                        th(scope = ThScope.col) { +"events" }
+                    }
+                }
+                tbody {
+                    props.counts.counts.map {
+                        tr {
+                            td { +"${it.key}" }
+                            td { +"${it.value}" }
+                        }
                     }
                 }
             }
@@ -263,8 +281,8 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
         }
         div {
             attrs.id = "energy-per-volume"
-            button {
-                a { +"Compute energy per volume for selected event" }
+            button(classes="btn btn-outline-primary") {
+                +"Compute energy per volume for selected event"
                 attrs.onClickFunction = {
                     var element = document.getElementById("runID-choice") as HTMLInputElement
                     val runID = element.value.toIntOrNull()
