@@ -8,11 +8,15 @@ import kotlin.math.max
 
 internal fun initDB() {
     try {
-        val config = HikariConfig("/hikari.properties")
-        val ds = HikariDataSource(config)
-        Database.connect(ds)
+        val host: String = System.getenv("POSTGRES_HOST") ?: "localhost"
+        val password: String = System.getenv("POSTGRES_PASSWORD") ?: "defaultpassword"
+
+        val url = "jdbc:postgresql://$host:5432/postgres"
+        Database.connect(url = url, user = "postgres", password = "$password")
+        println("Successful connection to DB! ($url)")
+
     } catch (e: Exception) {
-        println("Exception in 'initDB': $e")
+        println("$e, Exception in 'initDB', Probably host not connected")
     }
 }
 
@@ -163,7 +167,6 @@ fun retrieveEnergyPerVolumeForEvent(eventID: Int, runID: Int = 0): Map<String, D
                 .slice(Events.eDep.sum(), Events.volumeName)
                 .select { Events.eventID eq eventID }
                 .groupBy(Events.volumeName)
-            //println("EventID: $eventID Energy:")
             val energyPerVolume = mutableMapOf<String, Double?>()
             Energy.forEach {
                 val volumeName: String = it[Events.volumeName]
