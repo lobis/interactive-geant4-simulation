@@ -7,8 +7,6 @@ import react.dom.render
 
 typealias Change = EventSelectorState.() -> Unit
 
-@ExperimentalJsExport
-@JsExport
 fun main() {
 
     val channel = Channel<Change>(capacity = Channel.RENDEZVOUS)
@@ -33,7 +31,7 @@ fun main() {
                     "/control/execute macros/scintillationNaI.mac",
                     "/run/beamOn 1000",
                     "/run/beamOn 10000",
-                    "/run/beamOn 100000",
+                    "/run/beamOn 50000",
                 )
             }
         }

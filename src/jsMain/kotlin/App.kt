@@ -7,6 +7,7 @@ import kotlinx.html.*
 import kotlinx.html.js.*
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLTextAreaElement
 import react.*
 import react.dom.*
 import space.kscience.plotly.*
@@ -33,11 +34,11 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
     override fun RBuilder.render() {
         props.commands.map {
             val command: String = it
-            button {
-                a { +command }
+            button(classes = "btn btn-outline-primary") {
+                +command
                 attrs.id = command
                 attrs.onClickFunction = {
-                    GlobalScope.launch(Dispatchers.Main) {
+                    GlobalScope.launch(Dispatchers.Default) {
                         sendCommand(command)
                         setState {
                             commandsSent.add(command)
@@ -46,17 +47,48 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                 }
             }
         }
-        button {
-            a { +"Clear Database" }
+        button(classes = "btn btn-outline-danger", type = ButtonType.reset) {
+            +"Clear Database"
             attrs.id = "clear-database-button"
             attrs.onClickFunction = {
-                GlobalScope.launch(Dispatchers.Main) {
+                GlobalScope.launch(Dispatchers.Default) {
                     clearDatabase()
                 }
             }
         }
+        div {
+            attrs.id = "user-defined-commands-div"
+
+            h1 { +"Arbitrary Commands" }
+            val userDefinedCommandsTextAreaID: String = "user-defined-commands"
+            textArea {
+                attrs {
+                    id = userDefinedCommandsTextAreaID
+                    readonly = false
+                }
+            }
+            button(classes = "btn btn-warning") {
+                +"Send User Defined Commands"
+                attrs.id = "user-defined-commands-send"
+                attrs.onClickFunction = {
+                    val element = document.getElementById(userDefinedCommandsTextAreaID) as HTMLTextAreaElement
+                    val commands = element.value
+                    GlobalScope.launch(Dispatchers.Default) {
+                        for (command in commands.split("\n")) {
+                            if (command == "") {
+                                continue
+                            }
+                            sendCommand(command)
+                            setState {
+                                commandsSent.add(command)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         h1 { +"Commands Sent" }
-        val commandsDisplayTextAreaID: String = "commands-sent-display"
+        val commandsDisplayTextAreaID = "commands-sent-display"
         textArea {
             attrs {
                 id = commandsDisplayTextAreaID
@@ -118,27 +150,45 @@ class EventSelectorComponent(props: EventSelectorProps) : RComponent<EventSelect
     }
 }
 
+external interface CountsTableState : RState {
+    var toggle: Boolean
+};
+
 external interface CountsTableProps : RProps {
     var counts: Counts
 };
 
 @JsExport
-class CountsTableComponent : RComponent<CountsTableProps, RState>() {
+class CountsTableComponent : RComponent<CountsTableProps, CountsTableState>() {
+    override fun CountsTableState.init(props: CountsTableProps) {
+        toggle = true
+    }
 
     override fun RBuilder.render() {
-        table(classes = "table table-hover table-dark table-sm") {
-            attrs.id = "table-counts"
-            thead(classes = "thead-dark") {
-                tr {
-                    th(scope = ThScope.col) { +"runID" }
-                    th(scope = ThScope.col) { +"events" }
+        button(classes = "btn btn-outline-light") {
+            attrs.id = "table-counts-toggle"
+            +"Toggle Couns Table"
+            attrs.onClickFunction = {
+                setState {
+                    toggle = !toggle
                 }
             }
-            tbody {
-                props.counts.counts.map {
+        }
+        if (!state.toggle) {
+            table(classes = "table table-hover table-striped table-sm") {
+                attrs.id = "table-counts"
+                thead {
                     tr {
-                        td { +"${it.key}" }
-                        td { +"${it.value}" }
+                        th(scope = ThScope.col) { +"runID" }
+                        th(scope = ThScope.col) { +"events" }
+                    }
+                }
+                tbody {
+                    props.counts.counts.map {
+                        tr {
+                            td { +"${it.key}" }
+                            td { +"${it.value}" }
+                        }
                     }
                 }
             }
@@ -186,10 +236,11 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
                 id = "runID-choice"
                 name = runIdChoiceID
                 list = "runID-values"
+                type = InputType.number
                 onChangeFunction = {
                     val runID = getSelectedRunID()
                     if (runID != null && runID in props.runIDs) {
-                        GlobalScope.launch(Dispatchers.Main) {
+                        GlobalScope.launch(Dispatchers.Default) {
                             val theEventIDs: Set<Int> = getEventIDsFromRunID(runID)
                             val theVolumeNames: Set<String> = getVolumeNamesFromRunID(runID)
                             setState {
@@ -217,6 +268,7 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
                 id = "eventID-choice"
                 name = "eventID-choice"
                 list = "eventID-values"
+                type = InputType.number
             }
         }
         dataList {
@@ -229,15 +281,15 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
         }
         div {
             attrs.id = "energy-per-volume"
-            button {
-                a { +"Compute energy per volume for selected event" }
+            button(classes = "btn btn-outline-primary") {
+                +"Compute energy per volume for selected event"
                 attrs.onClickFunction = {
                     var element = document.getElementById("runID-choice") as HTMLInputElement
                     val runID = element.value.toIntOrNull()
                     element = document.getElementById("eventID-choice") as HTMLInputElement
                     val eventID = element.value.toIntOrNull()
                     if (runID != null && eventID != null) {
-                        GlobalScope.launch(Dispatchers.Main) {
+                        GlobalScope.launch(Dispatchers.Default) {
                             val response: Map<String, Double> =
                                 getEventEnergyPerVolume(runID = runID, eventID = eventID)
                             setState {
@@ -385,6 +437,7 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                         min = "10"
                         max = "400"
                         step = "5"
+                        value = state.nBinsX.toString()
                         onChangeFunction = {
                             val e = document.getElementById("nbinsx") as HTMLInputElement
                             val n = e.value.toInt()
@@ -408,6 +461,7 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                         min = "200"
                         max = "2000"
                         step = "50"
+                        value = state.xMax.toString()
                         onChangeFunction = {
                             val e = document.getElementById("xaxisrange") as HTMLInputElement
                             val n = e.value.toDouble()
@@ -430,7 +484,6 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                     start = state.xMin
                     size = (state.xMax - state.xMin) / state.nBinsX
                 }
-                //nbinsx = state.nBinsX
             }
             layout {
                 bargap = 0.1
