@@ -19,7 +19,7 @@ services:
     environment:
       POSTGRES_HOST: database
       POSTGRES_PASSWORD: defaultpassword
-      POSTGRES_MAX_BATCH_INSERTS: 50000
+      POSTGRES_MAX_BATCH_INSERTS: 20000
     expose:
       - "9080"
     deploy:
