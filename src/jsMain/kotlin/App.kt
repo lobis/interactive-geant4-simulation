@@ -366,10 +366,12 @@ fun RBuilder.SelectorComponent(handler: SelectorProps.() -> Unit): ReactElement 
     }
 }
 
+@JsExport
 external interface HistogramProps : RProps {
     var id: String // id of div
 }
 
+@JsExport
 external interface HistogramState : RState {
     var runID: Int
     var volumeName: String
