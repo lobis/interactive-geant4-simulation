@@ -12,24 +12,20 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
         max_attempts: 3
-        window: 120s
 
   geant4-rest-api:
     image: lobis/geant4-rest-api:latest
     environment:
       POSTGRES_HOST: database
       POSTGRES_PASSWORD: defaultpassword
-      POSTGRES_MAX_BATCH_INSERTS: 50000
+      #POSTGRES_MAX_BATCH_INSERTS: 50000
     expose:
       - "9080"
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
         max_attempts: 3
-        window: 120s
 
   webservice:
     image: lobis/interactive-simulation:latest
@@ -44,6 +40,4 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
         max_attempts: 3
-        window: 120s

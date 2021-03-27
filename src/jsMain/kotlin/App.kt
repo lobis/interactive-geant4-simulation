@@ -175,9 +175,9 @@ class CountsTableComponent : RComponent<CountsTableProps, CountsTableState>() {
             }
         }
         if (!state.toggle) {
-            table(classes = "table table-hover table-dark table-sm") {
+            table(classes = "table table-hover table-striped table-sm") {
                 attrs.id = "table-counts"
-                thead(classes = "thead-dark") {
+                thead {
                     tr {
                         th(scope = ThScope.col) { +"runID" }
                         th(scope = ThScope.col) { +"events" }
@@ -281,7 +281,7 @@ class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, Select
         }
         div {
             attrs.id = "energy-per-volume"
-            button(classes="btn btn-outline-primary") {
+            button(classes = "btn btn-outline-primary") {
                 +"Compute energy per volume for selected event"
                 attrs.onClickFunction = {
                     var element = document.getElementById("runID-choice") as HTMLInputElement
