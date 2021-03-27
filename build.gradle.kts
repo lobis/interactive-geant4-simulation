@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 plugins {
     kotlin("multiplatform") version "1.4.32"
     kotlin("plugin.serialization") version "1.4.32"
+//    id("com.github.johnrengelman.shadow") version "6.1.0"
     application //to run JVM part
 }
 
@@ -16,13 +17,8 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenCentral()
     jcenter()
-    maven("https://dl.bintray.com/kotlin/kotlinx")
     maven("https://kotlin.bintray.com/kotlin-js-wrappers/") // react, styled, ...
-    maven("https://dl.bintray.com/mipt-npm/dataforge")
-    maven("https://dl.bintray.com/mipt-npm/kscience")
-    maven("https://dl.bintray.com/mipt-npm/dev")
     maven("https://repo.kotlin.link")
-    maven("https://mvnrepository.com/artifact/org.apache.commons/commons-math3")
 }
 
 kotlin {
@@ -38,7 +34,6 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(kotlin("stdlib-common"))
                 implementation("space.kscience:plotlykt-core:$plotlyKtVersion")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
             }

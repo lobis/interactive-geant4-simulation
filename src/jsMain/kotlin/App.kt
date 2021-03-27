@@ -1,4 +1,6 @@
 // normal distribution
+@file:Suppress("EXPERIMENTAL_API_USAGE")
+
 import io.ktor.client.fetch.*
 import kotlinext.js.*
 import kotlinx.browser.document
@@ -51,7 +53,7 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
             a { +"Clear Database" }
             attrs.id = "clear-database-button"
             attrs.onClickFunction = {
-                GlobalScope.launch(Dispatchers.Main) {
+                GlobalScope.launch(Dispatchers.Default) {
                     clearDatabase()
                 }
             }
@@ -315,10 +317,12 @@ fun RBuilder.SelectorComponent(handler: SelectorProps.() -> Unit): ReactElement 
     }
 }
 
+@JsExport
 external interface HistogramProps : RProps {
     var id: String // id of div
 }
 
+@JsExport
 external interface HistogramState : RState {
     var runID: Int
     var volumeName: String

@@ -2,20 +2,13 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
-data class Counts(val counts: Map<Int, Long> = mapOf<Int, Long>()) {
+data class Counts(val counts: Map<Int, Long> = mapOf()) {
     companion object {
         const val path = "/counts"
     }
 
-    fun getRunIDs(): Set<Int> {
-        val set = mutableSetOf<Int>()
-        counts.forEach {
-            set.add(it.key.toInt())
-        }
-        return set
-    }
+    fun getRunIDs(): Set<Int> = counts.keys
 }
-
 
 @Serializable
 data class EventIDs(val runID: Int, val eventID: List<Int>) {
