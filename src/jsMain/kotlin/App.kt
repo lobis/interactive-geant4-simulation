@@ -11,6 +11,9 @@ import org.w3c.dom.HTMLTextAreaElement
 import react.*
 import react.dom.*
 import space.kscience.plotly.*
+import space.kscience.plotly.models.BarMode
+import space.kscience.plotly.models.HistFunc
+import kotlin.math.max
 
 external interface CommandsProps : RProps {
     var commands: Set<String>
@@ -39,14 +42,20 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                 attrs.id = command
                 attrs.onClickFunction = {
                     GlobalScope.launch(Dispatchers.Default) {
-                        sendCommand(command)
                         setState {
                             commandsSent.add(command)
+                        }
+                        // TODO: debug why this gives error
+                        try {
+                            sendCommand(command)
+                        } catch (e: Exception) {
+                            println("Exception while sending command after pressing button': $e")
                         }
                     }
                 }
             }
         }
+        br {}
         button(classes = "btn btn-outline-danger", type = ButtonType.reset) {
             +"Clear Database"
             attrs.id = "clear-database-button"
@@ -67,6 +76,7 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                     readonly = false
                 }
             }
+            br {}
             button(classes = "btn btn-warning") {
                 +"Send User Defined Commands"
                 attrs.id = "user-defined-commands-send"
@@ -78,10 +88,10 @@ class CommandsComponent(props: CommandsProps) : RComponent<CommandsProps, Comman
                             if (command == "") {
                                 continue
                             }
-                            sendCommand(command)
                             setState {
                                 commandsSent.add(command)
                             }
+                            sendCommand(command)
                         }
                     }
                 }
@@ -109,6 +119,7 @@ fun RBuilder.commandsComponent(handler: CommandsProps.() -> Unit): ReactElement 
 external interface EventSelectorState : RState {
     var counts: Counts
 };
+
 external interface EventSelectorProps : RProps {
     var changes: ReceiveChannel<EventSelectorState.() -> Unit>
 };
@@ -158,6 +169,7 @@ external interface CountsTableProps : RProps {
     var counts: Counts
 };
 
+@ExperimentalJsExport
 @JsExport
 class CountsTableComponent : RComponent<CountsTableProps, CountsTableState>() {
     override fun CountsTableState.init(props: CountsTableProps) {
@@ -196,6 +208,7 @@ class CountsTableComponent : RComponent<CountsTableProps, CountsTableState>() {
     }
 }
 
+@ExperimentalJsExport
 fun RBuilder.countsTableComponent(handler: CountsTableProps.() -> Unit): ReactElement {
     return child(CountsTableComponent::class) {
         this.attrs(handler)
@@ -213,6 +226,7 @@ external interface SelectorState : RState {
     var currentEnergyPerVolume: Map<String, Double>
 }
 
+@ExperimentalJsExport
 @JsExport
 class SelectorComponent(props: SelectorProps) : RComponent<SelectorProps, SelectorState>(props) {
     override fun SelectorState.init(props: SelectorProps) {
@@ -366,30 +380,35 @@ fun RBuilder.SelectorComponent(handler: SelectorProps.() -> Unit): ReactElement 
     }
 }
 
+@ExperimentalJsExport
 @JsExport
 external interface HistogramProps : RProps {
     var id: String // id of div
 }
 
+@ExperimentalJsExport
 @JsExport
 external interface HistogramState : RState {
     var runID: Int
     var volumeName: String
     var values: List<Double>
+    var energyPerEvent: Map<Int, Double>
     var xMin: Double
     var xMax: Double
     var nBinsX: Int
 }
 
+@ExperimentalJsExport
 @JsExport
 class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, HistogramState>(props) {
     override fun HistogramState.init(props: HistogramProps) {
         runID = 0
         volumeName = "target"
         values = listOf()
+        energyPerEvent = mapOf()
         xMin = 0.0
-        xMax = 1000.0
-        nBinsX = 100
+        xMax = 800.0
+        nBinsX = 120
     }
 
     init {
@@ -399,23 +418,31 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                 var element = document.getElementById("runID-choice") as HTMLInputElement
                 val runIDorNull = element.value.toIntOrNull()
                 element = document.getElementById("volumeName-choice") as HTMLInputElement
-                val TheVolumeName: String = element.value
-                if (runIDorNull != null && TheVolumeName != "") {
+                val theVolumeName: String = element.value
+                var wait: Long = 2000
+                if (runIDorNull != null && theVolumeName != "") {
                     val energyResolution: Double =
                         (document.getElementById("energy-resolution") as HTMLInputElement).value.toDoubleOrNull() ?: 0.0
-                    val energies = getRunEnergyForVolume(
-                        runID = runIDorNull,
-                        volume = TheVolumeName,
-                        energyResolution = energyResolution / 100.0 // in %
-                    ).map { it.value }
+                    // we don't request the values we already have
+                    val eventIDMax: Int = state.energyPerEvent.maxByOrNull { it.key }?.key?.plus(1) ?: 0
 
+                    val m =
+                        getRunEnergyForVolume(
+                            runID = runIDorNull,
+                            volume = theVolumeName,
+                            eventIDStart = eventIDMax,
+                            energyResolution = energyResolution / 100.0 // in %
+                        )
+                    if (m.isNotEmpty()) wait = 100 // if we are still recieving data, don't wait to send another request
+                    println("Received Energies per event (eventID>=$eventIDMax) size: ${m.size}")
                     setState {
                         runID = runIDorNull
-                        volumeName = TheVolumeName
-                        values = energies
+                        volumeName = theVolumeName
+                        energyPerEvent += m
+                        values += m.map { it.value }
                     }
                 }
-                delay(1000)
+                delay(wait)
             }
         }
     }
@@ -484,14 +511,24 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                     start = state.xMin
                     size = (state.xMax - state.xMin) / state.nBinsX
                 }
+                histfunc = HistFunc.count
+                marker {
+                    color(0, 0, 255, 0.8)
+                }
+                opacity = 1
             }
             layout {
-                bargap = 0.1
+                width = (document.getElementById("canvas") as HTMLElement).offsetWidth
+                height = (document.getElementById("event-selector") as HTMLElement).offsetHeight
+                bargap = 0.05
+                bargroupgap = 0.2
+                barmode = BarMode.overlay
                 title {
-                    text = "Energy deposited in volume '${state.volumeName}' for runID: ${state.runID}"
+                    text = "Energy deposited in volume \"${state.volumeName}\" for runID: ${state.runID}"
                     font {
                         size = 25
                         color("black")
+                        family = "sans-serif"
                     }
                 }
                 xaxis {
@@ -499,6 +536,7 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                         text = "Energy (keV)"
                         font {
                             size = 20
+                            family = "sans-serif"
                         }
                     }
                     autorange = false
@@ -509,6 +547,7 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
                         text = "Counts"
                         font {
                             size = 20
+                            family = "sans-serif"
                         }
                     }
                 }
@@ -517,6 +556,8 @@ class HistogramComponent(props: HistogramProps) : RComponent<HistogramProps, His
     }
 }
 
+@ExperimentalJsExport
+@JsExport
 fun RBuilder.histogramComponent(handler: HistogramProps.() -> Unit): ReactElement {
     return child(HistogramComponent::class) {
         this.attrs(handler)

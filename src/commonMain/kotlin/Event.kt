@@ -9,7 +9,7 @@ data class Command(val command: String) {
 
 
 @Serializable
-data class Counts(val counts: Map<Int, Long> = mapOf()) {
+data class Counts(val counts: Map<Int, Int> = mapOf()) {
     companion object {
         const val path = "/counts"
     }

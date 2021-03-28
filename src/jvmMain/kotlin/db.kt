@@ -6,6 +6,11 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.math.max
 
+internal object Summary : Table() {
+    val runID = integer("runid")
+    val counts = integer("counts")
+}
+
 internal fun initDB() {
     try {
         val host: String = System.getenv("POSTGRES_HOST") ?: "localhost"
@@ -24,6 +29,7 @@ fun clearDatabase() {
     try {
         transaction {
             Events.deleteAll()
+            Summary.deleteAll()
         }
     } catch (e: Exception) {
         println("Exception on server-side 'clearDatabase': $e")
@@ -53,21 +59,16 @@ fun retrievePositionsAndEnergies(runID: Int, volume: String? = null): Map<String
 }
 
 fun retrieveCounts(): Counts {
-    var result: Counts = Counts(mutableMapOf<Int, Long>())
+    var result: Counts = Counts(mutableMapOf<Int, Int>())
     try {
         transaction {
-            val queryResult =
-                Events.slice(Events.runID, Events.eventID.countDistinct()).selectAll().withDistinct()
-                    .groupBy(Events.runID)
-                    .map {
-                        it[Events.runID] to it[Events.eventID.countDistinct()]
-                    }
-            val m = mutableMapOf<Int, Long>()
+            val queryResult = Summary.selectAll().orderBy(Summary.runID to SortOrder.ASC)
+                .map { it[Summary.runID] to it[Summary.counts] }
+            val m = mutableMapOf<Int, Int>()
             queryResult.map {
                 m[it.first] = it.second
             }
             result = Counts(m)
-
         }
     } catch (e: Exception) {
         println("Exception on 'retrieveCounts': $e")
@@ -124,15 +125,22 @@ fun retrieveVolumeNames(runID: Int = 0): List<String>? {
     return result
 }
 
-fun retrieveEnergyInVolumeForRun(runID: Int, volume: String, energyResolution: Double = 0.0): Map<Int, Double> {
+fun retrieveEnergyInVolumeForRun(
+    runID: Int,
+    volume: String,
+    eventIDStart: Int = 0,
+    energyResolution: Double = 0.0
+): Map<Int, Double> {
     val result = mutableMapOf<Int, Double>()
     try {
         transaction {
-            val rng = ISAACRandom(0)
+            val rng = ISAACRandom() // random seed
             for (pair in Events
                 .slice(Events.eDep.sum(), Events.eventID)
-                .select { (Events.volumeName eq volume) and (Events.runID eq runID) }
-                .groupBy(Events.eventID).map {
+                .select { (Events.volumeName eq volume) and (Events.runID eq runID) and (Events.eventID greaterEq eventIDStart) }
+                .limit(5000)
+                .groupBy(Events.eventID)
+                .orderBy(Events.eventID to SortOrder.ASC).map {
                     it[Events.eventID] to it[Events.eDep.sum()]
                 }) {
                 result[pair.first] =

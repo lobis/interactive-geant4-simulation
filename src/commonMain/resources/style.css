@@ -9,6 +9,7 @@ button {
 
 h1 {
     text-align: center;
+    font-size: 25px;
 }
 
 .row {
@@ -16,12 +17,12 @@ h1 {
 }
 
 .column {
-    flex: 20%;
+    flex: 15%;
     padding: 30px;
 }
 
 #canvas {
-    flex: 60%;
+    flex: 70%;
     padding: 0;
 }
 
@@ -31,7 +32,7 @@ textarea {
 }
 
 #interface {
-    height: 50%;
+    height: auto;
 }
 
 label, input {

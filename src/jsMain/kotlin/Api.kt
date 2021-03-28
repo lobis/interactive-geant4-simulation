@@ -6,13 +6,14 @@ import io.ktor.client.request.post
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import kotlinx.browser.window
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 val endpoint = window.location.origin // only needed until https://github.com/ktorio/ktor/issues/1695 is resolved
 
 val jsonClient = HttpClient {
-    install(JsonFeature) { serializer = KotlinxSerializer() }
+    install(JsonFeature)
+    {
+        serializer = KotlinxSerializer()
+    }
 }
 
 suspend fun getEventFull(eventID: Int): List<EventFull> {
@@ -27,14 +28,14 @@ suspend fun getCounts(): Counts {
     return jsonClient.get(endpoint + Counts.path)
 }
 
-suspend fun sendCommand(command: String) {
-    jsonClient.post<Command>(endpoint + Command.path) {
+suspend fun sendCommand(command: String): String {
+    return jsonClient.post(endpoint + Command.path) {
         println("send post command: $command")
         body = TextContent(
-            text = Json.encodeToString(Command(command)),
-            contentType = ContentType.Application.Json
+            contentType = ContentType.Application.Json,
+            text = "{ \"command\": \"$command\"}" // should use the serializer to convert to json
         )
-
+        println("command '$command' sent")
     }
 }
 
@@ -54,8 +55,13 @@ suspend fun getEventEnergyPerVolume(runID: Int, eventID: Int): Map<String, Doubl
     return jsonClient.get("$endpoint/energyPerVolume?runID=$runID&eventID=$eventID")
 }
 
-suspend fun getRunEnergyForVolume(runID: Int, volume: String, energyResolution: Double = 0.0): Map<Int, Double> {
-    return jsonClient.get("$endpoint/energyInVolumeForRun?runID=$runID&volume=$volume&energyResolution=$energyResolution")
+suspend fun getRunEnergyForVolume(
+    runID: Int,
+    volume: String,
+    eventIDStart: Int = 0,
+    energyResolution: Double = 0.0
+): Map<Int, Double> {
+    return jsonClient.get("$endpoint/energyInVolumeForRun?runID=$runID&volume=$volume&eventIDStart=$eventIDStart&energyResolution=$energyResolution")
 }
 
 suspend fun retrievePositionsAndEnergies(runID: Int, volume: String? = null): Map<String, List<Double>> {

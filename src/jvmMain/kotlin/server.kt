@@ -95,7 +95,6 @@ fun main() {
                     val runID: Int = runIDs[0].toInt()
                     val volumeNames = retrieveVolumeNames(runID)
                     if (volumeNames != null) {
-                        println("VOLUMENAMES: $volumeNames")
                         fail = false
                         call.respond(volumeNames)
                     }
@@ -104,6 +103,7 @@ fun main() {
             }
             get("/energyInVolumeForRun") {
                 val runID: Int? = call.request.queryParameters["runID"]?.toIntOrNull()
+                val eventIDStart: Int = call.request.queryParameters["eventIDStart"]?.toIntOrNull() ?: 0
                 val volume: String? = call.request.queryParameters["volume"]
                 // energy resolution is a temporary thing for demonstration
                 val energyResolution: Double? = call.request.queryParameters["energyResolution"]?.toDoubleOrNull()
@@ -111,12 +111,14 @@ fun main() {
                     call.respond(HttpStatusCode.BadRequest)
                 } else {
                     if (energyResolution == null) {
-                        val result = retrieveEnergyInVolumeForRun(runID = runID, volume = volume)
+                        val result =
+                            retrieveEnergyInVolumeForRun(runID = runID, volume = volume, eventIDStart = eventIDStart)
                         call.respond(result)
                     } else {
                         val result = retrieveEnergyInVolumeForRun(
                             runID = runID,
                             volume = volume,
+                            eventIDStart = eventIDStart,
                             energyResolution = energyResolution
                         )
                         call.respond(result)
@@ -171,11 +173,7 @@ fun main() {
                 val host: String = System.getenv("SIMULATION_HOST") ?: "localhost"
                 println("Sending command: '$command' to '$host'")
                 httpClient.post<String>("http://$host:9080/send/") {
-                    println("send post command: $command")
-                    body = TextContent(
-                        text = "command=$command",
-                        contentType = ContentType.Text.Plain
-                    )
+                    body = TextContent(text = "command=$command", contentType = ContentType.Text.Plain)
                 }
                 call.respond(HttpStatusCode.OK)
             }
